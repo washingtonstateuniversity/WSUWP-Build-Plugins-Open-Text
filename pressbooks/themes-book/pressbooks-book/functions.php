@@ -95,9 +95,6 @@ function pb_enqueue_scripts() {
 		}
 	}
 
-	if ( ! is_front_page() ) {
-		wp_enqueue_script( 'pressbooks/navbar', get_template_directory_uri() . '/js/navbar.js', array( 'jquery' ), '1.7.0', false );
-	}
 	wp_enqueue_script( 'pressbooks/keyboard-nav', get_template_directory_uri() . '/js/keyboard-nav.js', array( 'jquery' ), '1.7.0', true );
 
 	if ( is_single() ) {
@@ -196,30 +193,7 @@ function pb_get_links($echo=true) {
  * Prevent access by unregistered user if the book in question is private.
  */
 function pb_private() {
-	$bloginfourl = get_bloginfo( 'url' ); ?>
-  <div <?php post_class(); ?>>
-		<h2 class="entry-title denied-title"><?php _e('Access Denied', 'pressbooks'); ?></h2>
-		<!-- Table of content loop goes here. -->
-		<div class="entry-content denied-text">
-			<p><?php printf(
-				__( 'This book is private, and accessible only to registered users. If you have an account you can %s.', 'pressbooks' ),
-				sprintf(
-					'<a href="%1$s">%2$s</a>',
-					get_bloginfo( 'url' ) . '/wp-login.php',
-					__( 'login here', 'pressbooks' )
-				)
-			); ?></p>
-			<p><?php printf(
-				__( 'You can also set up your own Pressbooks book at %s.', 'pressbooks' ),
-				sprintf(
-					'<a href="%1$s">%2$s</a>',
-					apply_filters( 'pb_signup_url', 'https://pressbooks.com' ),
-					apply_filters( 'pb_signup_url', 'Pressbooks.com' )
-				)
-			); ?></p>
-		</div>
-	</div><!-- #post-## -->
-<?php
+	get_template_part('private');
 }
 
 
@@ -295,7 +269,7 @@ function pressbooks_copyright_license() {
 	$transient = get_transient("license-inf-$id" );
 	$updated = array( $license, $copyright_holder, $title );
 	$changed = false;
-	$lang = $book_meta['pb_language'];
+	$lang = ( ! empty( $book_meta['pb_language'] ) ) ? $book_meta['pb_language'] : 'en' ;
 
 
 	// Copyright holder, set in order of precedence
@@ -305,11 +279,11 @@ function pressbooks_copyright_license() {
 
 	} elseif ( isset( $book_meta['pb_copyright_holder'] ) ) {
 		// book copyright holder overrides book author
-		$copyright_holder =  $book_meta['pb_copyright_holder'];
+		$copyright_holder = $book_meta['pb_copyright_holder'];
 
 	} elseif ( isset( $book_meta['pb_author'] ) ) {
 		// book author is the fallback, default
-		$copyright_holder =  $book_meta['pb_author'];
+		$copyright_holder = $book_meta['pb_author'];
 	}
 
 	// Copyright license, set in order of precedence

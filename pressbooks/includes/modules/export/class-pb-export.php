@@ -283,7 +283,7 @@ abstract class Export {
 
 		// Within range of 5 minutes?
 		$within_range = time() - $timestamp;
-		if ( $within_range > ( 60 * 5 ) ) {
+		if ( $within_range > ( MINUTE_IN_SECONDS * 5 ) ) {
 			return false;
 		}
 
@@ -655,7 +655,7 @@ abstract class Export {
 			 * 		$modules[] = '\Pressbooks\Modules\Export\Docx\Docx';
 			 * 	}
 			 * 	return $modules;
-		 	 * } );
+			  * } );
 			 *
 			 */
 			$modules = apply_filters( 'pb_active_export_modules', $modules );
@@ -665,7 +665,7 @@ abstract class Export {
 
 			$last_export = get_option( 'pressbooks_last_export' );
 			$within_range = time() - $last_export;
-			if ( $within_range > ( 60 * 60 ) ) {
+			if ( $within_range > ( HOUR_IN_SECONDS ) ) {
 				\Pressbooks\Book::deleteBookObjectCache();
 				update_option( 'pressbooks_last_export', time() );
 			}
@@ -773,8 +773,8 @@ abstract class Export {
 			$compare_with = get_available_languages( PB_PLUGIN_DIR . '/languages/' );
 
 			$codes = \Pressbooks\L10n\wplang_codes();
-			$book_lang = Book::getBookInformation();
-			$book_lang = ( isset( $book_lang['pb_language'] ) ) ? $book_lang['pb_language'] : 'en';
+			$metadata = Book::getBookInformation();
+			$book_lang = ( ! empty( $metadata['pb_language'] ) ) ? $metadata['pb_language'] : 'en';
 			$book_lang = $codes[ $book_lang ];
 
 			foreach ( $compare_with as $compare ) {

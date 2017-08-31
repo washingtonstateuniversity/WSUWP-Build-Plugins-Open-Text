@@ -13,7 +13,7 @@ Download the [latest release][1] of Pressbooks from our [releases page][2].
 IMPORTANT!
 
 *   Do not install Pressbooks on an existing WordPress blog -- create a new WordPress install instead.
-*   Pressbooks works with [PHP 5.6.x][3] and WordPress 4.7.3. Lower versions are not supported.
+*   Pressbooks works with [PHP 5.6.x][3] and WordPress 4.7.5. Lower versions are not supported.
 
 *Part 1, WordPress generic:*
 
@@ -175,7 +175,7 @@ Once WP-CLI is installed on your server, the following shell commands executed i
     wp core multisite-convert --title="Pressbooks"
     wp plugin delete hello
     wp plugin update-all
-    wp plugin install https://github.com/pressbooks/pressbooks/releases/download/3.9.8.2/pressbooks-3.9.8.2.zip --activate-network
+    wp plugin install https://github.com/pressbooks/pressbooks/releases/download/3.9.10/pressbooks-3.9.10.zip --activate-network
     wp theme list
     wp theme enable pressbooks-book --network
     wp theme enable clarke --network

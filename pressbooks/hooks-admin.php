@@ -133,6 +133,7 @@ if ( \Pressbooks\Book::isBook() ) {
 	add_action( 'save_post', '\Pressbooks\Book::consolidatePost', 10, 2 );
 	add_action( 'save_post_metadata', '\Pressbooks\Admin\Metaboxes\upload_cover_image', 10, 2 );
 	add_action( 'save_post_metadata', '\Pressbooks\Admin\Metaboxes\add_required_data', 20, 2 );
+	add_action( 'added_post_meta', '\Pressbooks\Admin\Metaboxes\title_update', 10, 4 );
 	add_action( 'updated_post_meta', '\Pressbooks\Admin\Metaboxes\title_update', 10, 4 );
 	add_action( 'updated_post_meta', '\Pressbooks\L10n\install_book_locale', 10, 4 );
 	add_action( 'save_post', '\Pressbooks\Book::deleteBookObjectCache', 1000 );
@@ -263,3 +264,8 @@ add_action( 'admin_menu', function () {
 	remove_action( 'admin_notices', 'update_nag', 3 );
 	remove_filter( 'update_footer', 'core_update_footer' );
 } );
+
+// Plugin Recommendations
+add_filter( 'install_plugins_tabs', '\Pressbooks\Utility\install_plugins_tabs' );
+add_filter( 'plugins_api', '\Pressbooks\Utility\hijack_recommended_tab', 10, 3 );
+add_filter( 'gettext', '\Pressbooks\Utility\change_recommendations_sentence', 10, 3 );

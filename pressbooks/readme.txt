@@ -1,10 +1,10 @@
 === Pressbooks ===
 
 Contributors: Pressbooks <code@pressbooks.com>
-Version: 3.9.8.2
+Version: 3.9.10
 Tags: ebooks, publishing, webbooks
-Requires at least: 4.7.3
-Tested up to: 4.7.3
+Requires at least: 4.7.5
+Tested up to: 4.8.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -33,7 +33,7 @@ in source code headers.
 IMPORTANT!
 
  * Do not install Pressbooks on an existing WordPress blog -- create a new WordPress install instead.
- * Pressbooks works with [PHP 5.6.x](https://secure.php.net/supported-versions.php) and WordPress 4.7.3. Lower versions are not supported.
+ * Pressbooks works with [PHP 5.6.x](https://secure.php.net/supported-versions.php) and WordPress 4.7.5. Lower versions are not supported.
 
 *Part 1, WordPress generic:*
 
@@ -226,11 +226,34 @@ TK.
 
 Pressbooks now requires [PHP >= 5.6](https://secure.php.net/supported-versions.php)
 
-Pressbooks now requires [WordPress 4.7.3](https://wordpress.org/download/).
+Pressbooks now requires [WordPress 4.7.5](https://wordpress.org/download/).
 
 Pressbooks now requires [PrinceXML 11](http://www.princexml.com/download/) for PDF exports.
 
 == Changelog ==
+
+### 3.9.10
+* **Feature:** Strikethrough text (the `<del>` tag) can now be used in front matter, part, chapter and back matter titles (see #790).
+
+### 3.9.9
+**NOTICE:** Pressbooks now requires [WordPress 4.7.5](https://wordpress.org/news/2017/05/wordpress-4-7-5/).
+
+* **Feature:** A curated listed of recommended plugins is now displayed within the plugin installer (see #729).
+* **Feature:** Search and Replace now supports regular expressions (props to @stepmuel; see #754). This feature can be enabled by adding: `define( 'PB_ENABLE_REGEX_SEARCHREPLACE', true );` to `wp-config.php`.
+* **Enhancement:** Updating a book theme will now trigger the regeneration of the webbook stylesheet (see #727 and #762).
+* **Enhancement:** There is now a specific template part, `private.php`, for the page that is displayed when a book is private (props to @stepmuel; see #755).
+* **Enhancement:** "Part" is now properly localized in the PDF Table of Contents (see #742).
+* **Enhancement:** Improved blank page rules in theme components.
+* **Enhancement:** The Ebook theme options tab is now hidden when Ebook dependencies are missing (props to @masaka222; see #745).
+* **Enhancement:** Dependency check results are now stored in site transients to reduce unnecessary function calls (see #749, #750).
+* **Enhancement:** Replaced variables with constants where appropriate (see #751).
+* **Enhancement:** Replaced uses of `PATH_CURRENT_SITE` with `network_home_url()` (props to @jeremyfelt; see #734).
+* **Enhancement:** Current `$post` is now included with `wp_enqueue_media()` in `symbionts/custom-metadata` (props to @jeremyfelt; see #735).
+* **Fix:** Removed the sticky navigation bar that overlapped webbook content (props to @pbstudent for the bug report; see #747 and #760).
+* **Fix:** Fixed an issue where running content strings would not be populated when a custom title page was used (see #496 and #761).
+* **Fix:** Fixed an issue where the book title would not update properly (see #542 and #746).
+* **Fix:** Fixed issues that arose when `pb_language` or `user_interface_lang` were not set (props to @monkecheese for initial bug report and testing; see #738, #739, #740).
+* **Fix:** Fixed an issue where a database error would be thrown when installing on a utf8mb4 MySQL instance (props to @jeremyfelt; see #733).
 
 ### 3.9.8.2
 **NOTICE:** Pressbooks' PHP version requirement (>= 5.6) and WordPress version requirement (>= 4.7.3) can no longer be overridden. Before installing Pressbooks 3.9.8, please ensure that your system has been upgraded accordingly.

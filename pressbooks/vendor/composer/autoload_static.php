@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitfaba5ab25f8d951e7d55e969cad1dead
+class ComposerStaticInit4847ef55069908deb21b5918dd2b1999
 {
     public static $files = array (
         '52aedd6bde5708f06004dbaa477f23bd' => __DIR__ . '/..' . '/perchten/rmrdir/src/rmrdir.php',
@@ -50,9 +50,9 @@ class ComposerStaticInitfaba5ab25f8d951e7d55e969cad1dead
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitfaba5ab25f8d951e7d55e969cad1dead::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitfaba5ab25f8d951e7d55e969cad1dead::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInitfaba5ab25f8d951e7d55e969cad1dead::$prefixesPsr0;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit4847ef55069908deb21b5918dd2b1999::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit4847ef55069908deb21b5918dd2b1999::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit4847ef55069908deb21b5918dd2b1999::$prefixesPsr0;
 
         }, null, ClassLoader::class);
     }

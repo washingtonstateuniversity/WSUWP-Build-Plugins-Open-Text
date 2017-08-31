@@ -18,6 +18,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function pb_meets_minimum_requirements() {
 
+	// Cheap cache
+	static $is_compatible = null;
+	if ( null !== $is_compatible ) {
+		return $is_compatible;
+	}
+
 	$is_compatible = true;
 
 	// PHP Version
@@ -31,7 +37,7 @@ function pb_meets_minimum_requirements() {
 
 	// WordPress Version
 	global $pb_minimum_wp;
-	$pb_minimum_wp = '4.7.3';
+	$pb_minimum_wp = '4.7.5';
 
 	if ( ! is_multisite() || ! version_compare( get_bloginfo( 'version' ), $pb_minimum_wp, '>=' ) ) {
 		add_action( 'admin_notices', '_pb_minimum_wp' );
