@@ -6,32 +6,34 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /* Outputs the content of the Organize page for a book */
 
-global $user_ID;
+global $user_ID; // @codingStandardsIgnoreLine
 $statuses = get_post_statuses();
 $book_structure = \Pressbooks\Book::getBookStructure();
-$book_is_public = ( 1 == get_option( 'blog_public' ) );
+$book_is_public = ( ! empty( get_option( 'blog_public' ) ) );
 $disable_comments = \Pressbooks\Utility\disable_comments();
+$wc = \Pressbooks\Book::wordCount();
+$wc_selected_for_export = \Pressbooks\Book::wordCount( true );
 ?>
 
 <div class="wrap">
 	<?php if ( current_user_can( 'manage_options' ) ) : ?>
-		<div id="publicize-panel" class="postbox">
-			<div class="inside">
-				<?php if ( $book_is_public ) { ?>
-				<h4 class="publicize-alert public"><?php _e( 'This book\'s global privacy is set to', 'pressbooks' ); ?> <span><?php _e( 'Public', 'pressbooks' ); ?></span></h4>
-				<?php } else { ?>
-				<h4 class="publicize-alert private"><?php _e( 'This book\'s global privacy is set to', 'pressbooks' ); ?> <span><?php _e( 'Private', 'pressbooks' ); ?></span></h4>
-				<?php } ?>
-				<div class="publicize-form">
-					<label for="blog-public"><input type="radio" <?php if ( $book_is_public ) { echo 'checked="checked"';} ?> value="1" name="blog_public" id="blog-public"><span class="public<?php if ( $book_is_public ) { echo ' active';} ?>"><?php _e( 'Public', 'pressbooks' ); ?></span> &mdash;
-						<?php _e( 'Promote your book, set individual chapters privacy below.', 'pressbooks' ); ?>
-					</label>
-					<label for="blog-private"><input type="radio" <?php if ( ! $book_is_public ) { echo 'checked="checked"';} ?> value="0" name="blog_public" id="blog-private"><span class="private<?php if ( ! $book_is_public ) { echo ' active';} ?>"><?php _e( 'Private', 'pressbooks' ); ?></span> &mdash;
-						<?php _e( 'Only users you invite can see your book, regardless of individual chapter privacy settings below.', 'pressbooks' ); ?>
-					</label>
-				</div>
+	<div id="publicize-panel" class="postbox">
+		<div class="inside">
+			<?php if ( $book_is_public ) { ?>
+			<h4 class="publicize-alert public"><?php _e( 'This book\'s global privacy is set to', 'pressbooks' ); ?> <span><?php _e( 'Public', 'pressbooks' ); ?></span></h4>
+			<?php } else { ?>
+			<h4 class="publicize-alert private"><?php _e( 'This book\'s global privacy is set to', 'pressbooks' ); ?> <span><?php _e( 'Private', 'pressbooks' ); ?></span></h4>
+			<?php } ?>
+			<div class="publicize-form">
+				<label for="blog-public"><input type="radio" <?php if ( $book_is_public ) { echo 'checked="checked"';} ?> value="1" name="blog_public" id="blog-public"><span class="public<?php if ( $book_is_public ) { echo ' active';} ?>"><?php _e( 'Public', 'pressbooks' ); ?></span> &mdash;
+					<?php _e( 'Promote your book, set individual chapters privacy below.', 'pressbooks' ); ?>
+				</label>
+				<label for="blog-private"><input type="radio" <?php if ( ! $book_is_public ) { echo 'checked="checked"';} ?> value="0" name="blog_public" id="blog-private"><span class="private<?php if ( ! $book_is_public ) { echo ' active';} ?>"><?php _e( 'Private', 'pressbooks' ); ?></span> &mdash;
+					<?php _e( 'Only users you invite can see your book, regardless of individual chapter privacy settings below.', 'pressbooks' ); ?>
+				</label>
 			</div>
 		</div>
+	</div>
 	<?php endif; ?>
 	<h2><?php bloginfo( 'name' ); ?>
 		<?php if ( is_super_admin() ) : ?>
@@ -48,27 +50,32 @@ $disable_comments = \Pressbooks\Utility\disable_comments();
 		<?php endif; ?>
 	</h2>
 
+	<p>
+		<strong><?php _e( 'Word Count:', 'pressbooks' ); ?></strong> <?php printf( __( '%s (whole book)', 'pressbooks' ), "<span id='wc-all'>$wc</span>" ); ?> /
+		<?php printf( __( '%s (selected for export)', 'pressbooks' ), "<span id='wc-selected-for-export'>$wc_selected_for_export</span>" ); ?>
+	</p>
+
 	<?php // Iterate through types and output nice tables for each one.
 
-	$types = array(
-		'front-matter' => array(
+	$types = [
+		'front-matter' => [
 			'name' => __( 'Front Matter', 'pressbooks' ),
 			'abbreviation' => 'fm',
-		),
-		'chapter' => array(
+		],
+		'chapter' => [
 			'name' => __( 'Chapter', 'pressbooks' ),
 			'abbreviation' => 'chapter',
-		),
-		'back-matter' => array(
+		],
+		'back-matter' => [
 			'name' => __( 'Back Matter', 'pressbooks' ),
 			'abbreviation' => 'bm',
-		),
-	);
+		],
+	];
 
 	foreach ( $types as $type_slug => $type ) :
 		$type_name = $type['name'];
 		$type_abbr = $type['abbreviation'];
-		if ( 'chapter' == $type_slug ) : // Chapters have to be handled differently. ?>
+		if ( 'chapter' === $type_slug ) : // Chapters have to be handled differently. ?>
 			<?php foreach ( $book_structure['part'] as $part ) : ?>
 				<table id="part-<?php echo $part['ID']; ?>" class="wp-list-table widefat fixed <?php echo $type_slug; ?>s" cellspacing="0">
 					<thead>
@@ -77,11 +84,11 @@ $disable_comments = \Pressbooks\Utility\disable_comments();
 								<a href="<?php echo admin_url( 'post.php?post=' . $part['ID'] . '&action=edit' ); ?>"><?php echo $part['post_title']; ?></a>
 							</th>
 							<th><?php _e( 'Author', 'pressbooks' ); ?></th>
-							<?php if ( false == $disable_comments ) : ?><th><?php _e( 'Comments', 'pressbooks' ); ?></th><?php endif; ?>
+							<?php if ( false === $disable_comments ) : ?><th><?php _e( 'Comments', 'pressbooks' ); ?></th><?php endif; ?>
 							<th><?php _e( 'Status', 'pressbooks' ); ?></th>
-							<th><?php _e( 'Private', 'pressbooks' ); ?></th>
-							<th><?php _e( 'Show Title', 'pressbooks' ); ?></th>
-							<th><?php _e( 'Export', 'pressbooks' ); ?></th>
+							<th role="button"><?php _e( 'Private', 'pressbooks' ); ?></th>
+							<th role="button"><?php _e( 'Show Title', 'pressbooks' ); ?></th>
+							<th role="button"><?php _e( 'Export', 'pressbooks' ); ?></th>
 							<th>
 								<a href="<?php echo admin_url( 'post.php?post=' . $part['ID'] . '&action=edit' ); ?>"><?php _e( 'Edit', 'pressbooks' ); ?></a>
 								<?php if ( count( $book_structure['part'] ) > 1 ) : // Don't allow deletion of last remaining part. Bad things happen. ?>
@@ -105,9 +112,9 @@ $disable_comments = \Pressbooks\Utility\disable_comments();
 								<?php } ?></a></strong>
 							</td>
 							<td class="author column-author">
-								<?php echo $content['post_author'] == $user_ID ? 'You' : get_userdata( $content['post_author'] )->display_name; ?>
+								<?php echo $content['post_author'] === $user_ID ? 'You' : get_userdata( $content['post_author'] )->display_name; // @codingStandardsIgnoreLine ?>
 							</td>
-							<?php if ( false == $disable_comments ) : ?><td class="comments column-comments">
+							<?php if ( false === $disable_comments ) : ?><td class="comments column-comments">
 								<a class="post-comment-count" href="<?php echo admin_url( 'edit-comments.php?p=' . $content['ID'] ); ?>">
 									<span class="comment-count"><?php echo $content['comment_count']; ?></span>
 								</a>
@@ -134,7 +141,7 @@ $disable_comments = \Pressbooks\Utility\disable_comments();
 						<tr>
 							<th>&nbsp;</th>
 							<th>&nbsp;</th>
-							<?php if ( false == $disable_comments ) : ?><th>&nbsp;</th><?php endif; ?>
+							<?php if ( false === $disable_comments ) : ?><th>&nbsp;</th><?php endif; ?>
 							<th>&nbsp;</th>
 							<th>&nbsp;</th>
 							<th>&nbsp;</th>
@@ -153,11 +160,11 @@ $disable_comments = \Pressbooks\Utility\disable_comments();
 				<tr>
 					<th><?php echo $type_name; ?></th>
 					<th><?php _e( 'Author', 'pressbooks' ); ?></th>
-					<?php if ( false == $disable_comments ) : ?><th><?php _e( 'Comments', 'pressbooks' ); ?></th><?php endif; ?>
+					<?php if ( false === $disable_comments ) : ?><th><?php _e( 'Comments', 'pressbooks' ); ?></th><?php endif; ?>
 					<th><?php _e( 'Status', 'pressbooks' ); ?></th>
-					<th><?php _e( 'Private', 'pressbooks' ); ?></th>
-					<th><?php _e( 'Show Title', 'pressbooks' ); ?></th>
-					<th><?php _e( 'Export', 'pressbooks' ); ?></th>
+					<th role="button"><?php _e( 'Private', 'pressbooks' ); ?></th>
+					<th role="button"><?php _e( 'Show Title', 'pressbooks' ); ?></th>
+					<th role="button"><?php _e( 'Export', 'pressbooks' ); ?></th>
 					<th><?php _e( 'Edit', 'pressbooks' ); ?></th>
 				</tr>
 			</thead>
@@ -173,9 +180,9 @@ $disable_comments = \Pressbooks\Utility\disable_comments();
 						<?php } ?></a></strong>
 					</td>
 					<td class="author column-author">
-						<?php echo $content['post_author'] == $user_ID ? 'You' : get_userdata( $content['post_author'] )->display_name; ?>
+						<?php echo $content['post_author'] == $user_ID ? 'You' : get_userdata( $content['post_author'] )->display_name; // @codingStandardsIgnoreLine ?>
 					</td>
-					<?php if ( false == $disable_comments ) : ?><td class="comments column-comments">
+					<?php if ( false === $disable_comments ) : ?><td class="comments column-comments">
 						<a class="post-comment-count" href="<?php echo admin_url( 'edit-comments.php?p=' . $content['ID'] ); ?>">
 							<span class="comment-count"><?php echo $content['comment_count']; ?></span>
 						</a>
@@ -200,8 +207,8 @@ $disable_comments = \Pressbooks\Utility\disable_comments();
 			<tfoot>
 				<tr>
 					<th>&nbsp;</th>
-					<th>&nbsp;</th><?php if ( false == $disable_comments ) : ?>
-							<th>&nbsp;</th><?php endif; ?>
+					<th>&nbsp;</th>
+					<?php if ( false === $disable_comments ) : ?><th>&nbsp;</th><?php endif; ?>
 					<th>&nbsp;</th>
 					<th>&nbsp;</th>
 					<th>&nbsp;</th>

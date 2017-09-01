@@ -8,4 +8,5 @@ $baseDir = dirname($vendorDir);
 return array(
     '52aedd6bde5708f06004dbaa477f23bd' => $vendorDir . '/perchten/rmrdir/src/rmrdir.php',
     '0ac03ff008dc2941bc6326a91306855f' => $vendorDir . '/pressbooks/pb-api/pb-api.php',
+    '0b51b81077dc89114af454712eb5fce0' => $vendorDir . '/pressbooks/pb-cli/command.php',
 );

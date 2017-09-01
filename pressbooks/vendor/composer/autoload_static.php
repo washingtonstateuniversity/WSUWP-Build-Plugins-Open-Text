@@ -4,14 +4,28 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit4847ef55069908deb21b5918dd2b1999
+class ComposerStaticInit622cda50fcf147838dafcec1a0b09564
 {
     public static $files = array (
         '52aedd6bde5708f06004dbaa477f23bd' => __DIR__ . '/..' . '/perchten/rmrdir/src/rmrdir.php',
         '0ac03ff008dc2941bc6326a91306855f' => __DIR__ . '/..' . '/pressbooks/pb-api/pb-api.php',
+        '0b51b81077dc89114af454712eb5fce0' => __DIR__ . '/..' . '/pressbooks/pb-cli/command.php',
     );
 
     public static $prefixLengthsPsr4 = array (
+        'S' => 
+        array (
+            'Sinergi\\BrowserDetector\\' => 24,
+        ),
+        'P' => 
+        array (
+            'Psr\\Container\\' => 14,
+            'PressbooksMix\\' => 14,
+        ),
+        'M' => 
+        array (
+            'Masterminds\\' => 12,
+        ),
         'L' => 
         array (
             'Leafo\\ScssPhp\\' => 14,
@@ -23,6 +37,22 @@ class ComposerStaticInit4847ef55069908deb21b5918dd2b1999
     );
 
     public static $prefixDirsPsr4 = array (
+        'Sinergi\\BrowserDetector\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/sinergi/browser-detector/src',
+        ),
+        'Psr\\Container\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/psr/container/src',
+        ),
+        'PressbooksMix\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/pressbooks/mix/inc',
+        ),
+        'Masterminds\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/masterminds/html5/src',
+        ),
         'Leafo\\ScssPhp\\' => 
         array (
             0 => __DIR__ . '/..' . '/leafo/scssphp/src',
@@ -45,14 +75,26 @@ class ComposerStaticInit4847ef55069908deb21b5918dd2b1999
                 0 => __DIR__ . '/..' . '/pimple/pimple/src',
             ),
         ),
+        'H' => 
+        array (
+            'HumanNameParser\\' => 
+            array (
+                0 => __DIR__ . '/..' . '/davidgorges/human-name-parser/src',
+            ),
+        ),
+    );
+
+    public static $classMap = array (
+        'Htmlawed' => __DIR__ . '/..' . '/vanilla/htmlawed/src/Htmlawed.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit4847ef55069908deb21b5918dd2b1999::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit4847ef55069908deb21b5918dd2b1999::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit4847ef55069908deb21b5918dd2b1999::$prefixesPsr0;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit622cda50fcf147838dafcec1a0b09564::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit622cda50fcf147838dafcec1a0b09564::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit622cda50fcf147838dafcec1a0b09564::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInit622cda50fcf147838dafcec1a0b09564::$classMap;
 
         }, null, ClassLoader::class);
     }

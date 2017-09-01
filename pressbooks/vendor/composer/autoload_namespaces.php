@@ -8,4 +8,5 @@ $baseDir = dirname($vendorDir);
 return array(
     'PrinceXMLPhp' => array($vendorDir . '/gridonic/princexml-php/src'),
     'Pimple' => array($vendorDir . '/pimple/pimple/src'),
+    'HumanNameParser\\' => array($vendorDir . '/davidgorges/human-name-parser/src'),
 );

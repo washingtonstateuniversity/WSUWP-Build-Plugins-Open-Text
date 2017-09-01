@@ -6,6 +6,10 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
+    'Sinergi\\BrowserDetector\\' => array($vendorDir . '/sinergi/browser-detector/src'),
+    'Psr\\Container\\' => array($vendorDir . '/psr/container/src'),
+    'PressbooksMix\\' => array($vendorDir . '/pressbooks/mix/inc'),
+    'Masterminds\\' => array($vendorDir . '/masterminds/html5/src'),
     'Leafo\\ScssPhp\\' => array($vendorDir . '/leafo/scssphp/src'),
     'Composer\\Installers\\' => array($vendorDir . '/composer/installers/src/Composer/Installers'),
 );
