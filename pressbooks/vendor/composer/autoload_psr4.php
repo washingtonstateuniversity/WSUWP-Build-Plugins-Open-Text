@@ -11,5 +11,6 @@ return array(
     'PressbooksMix\\' => array($vendorDir . '/pressbooks/mix/inc'),
     'Masterminds\\' => array($vendorDir . '/masterminds/html5/src'),
     'Leafo\\ScssPhp\\' => array($vendorDir . '/leafo/scssphp/src'),
+    'Jenssegers\\ImageHash\\' => array($vendorDir . '/jenssegers/imagehash/src'),
     'Composer\\Installers\\' => array($vendorDir . '/composer/installers/src/Composer/Installers'),
 );

@@ -783,6 +783,17 @@ function template( $path, array $vars = [] ) {
 	return $output;
 }
 
+/**
+ * If we get error code 400, retry wp_remote_get()
+ *
+ * @param string $url
+ * @param array $args
+ * @param int $retry
+ * @param int $attempts
+ * @param array $response
+ *
+ * @return array|\WP_Error
+ */
 function remote_get_retry( $url, $args, $retry = 3, $attempts = 0, $response = [] ) {
 	$completed = false;
 
@@ -798,13 +809,41 @@ function remote_get_retry( $url, $args, $retry = 3, $attempts = 0, $response = [
 
 	$response = wp_remote_get( $url, $args );
 
-	$retry_response_codes = apply_filters( 'pressbooks_remote_get_retry_response_codes', [ 400 ] );
+	/**
+	 * Filter the array of response codes which should prompt a retry.
+	 *
+	 * @since 4.3.0
+	 */
+	$retry_response_codes = apply_filters(
+		'pb_remote_get_retry_response_codes',
+		/**
+		 * Filter the array of response codes which should prompt a retry.
+		 *
+		 * @since 3.9.6
+		 * @deprecated 4.3.0 Use pb_remote_get_retry_response_codes isntead.
+		 */
+		apply_filters( 'pressbooks_remote_get_retry_response_codes', [ 400 ] )
+	);
 
 	if ( ! is_array( $response ) || ! in_array( $response['response']['code'], $retry_response_codes, true ) ) {
 		return $response;
 	}
 
-	$sleep = apply_filters( 'pressbooks_remote_get_retry_wait_time', 1000 );
+	/**
+	 * Filter the sleep time for a retry.
+	 *
+	 * @since 4.3.0
+	 */
+	$sleep = apply_filters(
+		'pb_remote_get_retry_wait_time',
+		/**
+		 * Filter the sleep time for a retry.
+		 *
+		 * @since 3.9.6
+		 * @deprecated 4.3.0 Use pb_remote_get_retry_wait_time isntead.
+		 */
+		apply_filters( 'pressbooks_remote_get_retry_wait_time', 1000 )
+	);
 	usleep( $sleep );
 	return remote_get_retry( $url, $args, $retry, $attempts, $response );
 }
@@ -909,6 +948,22 @@ function str_ends_with( $haystack, $needle ) {
 	return ( substr( $haystack, -$length ) === $needle );
 }
 
+/**
+ * Replace last occurrence of a String
+ *
+ * @param string $search
+ * @param string $replace
+ * @param string  $subject
+ *
+ * @return string
+ */
+function str_lreplace( $search, $replace, $subject ) {
+	$pos = strrpos( $subject, $search );
+	if ( $pos !== false ) {
+		$subject = substr_replace( $subject, $replace, $pos, strlen( $search ) );
+	}
+	return (string) $subject;
+}
 
 /**
  * @param string $content

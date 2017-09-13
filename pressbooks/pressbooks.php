@@ -3,7 +3,7 @@
 Plugin Name: Pressbooks
 Plugin URI: https://pressbooks.com
 Description: Simple Book Production
-Version: 4.1.0
+Version: 4.3.0
 Author: Book Oven Inc.
 Author URI: https://pressbooks.com
 Text Domain: pressbooks
@@ -25,7 +25,21 @@ function _pb_session_start() { // @codingStandardsIgnoreLine
 	if ( ! session_id() ) {
 		if ( ! headers_sent() ) {
 			ini_set( 'session.use_only_cookies', true );
-			apply_filters( 'pressbooks_session_configuration', false );
+			/**
+			 * Adjust session configuration as needed.
+			 *
+			 * @since 4.3.0.
+			 */
+			apply_filters(
+				'pb_session_configuration',
+				/**
+				 * Adjust session configuration as needed.
+				 *
+				 * @since 3.9.4.2
+				 * @deprecated 4.3.0 Use pb_session_configuration instead.
+				 */
+				apply_filters( 'pressbooks_session_configuration', false )
+			);
 			session_start();
 		} else {
 			error_log( 'There was a problem with _pb_session_start(), headers already sent!' );
@@ -47,7 +61,7 @@ add_action( 'wp_login', '_pb_session_kill' );
 // -------------------------------------------------------------------------------------------------------------------
 
 if ( ! defined( 'PB_PLUGIN_VERSION' ) ) {
-	define( 'PB_PLUGIN_VERSION', '4.1.0' );
+	define( 'PB_PLUGIN_VERSION', '4.3.0' );
 }
 
 if ( ! defined( 'PB_PLUGIN_DIR' ) ) {

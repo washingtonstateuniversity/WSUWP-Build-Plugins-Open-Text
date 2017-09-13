@@ -9,6 +9,7 @@
 
 namespace Pressbooks\Modules\Export\Epub;
 
+use Masterminds\HTML5;
 use Pressbooks\Modules\Export\Export;
 use Pressbooks\Container;
 use Pressbooks\Sanitize;
@@ -277,6 +278,13 @@ class Epub201 extends Export {
 		$return_var = 0;
 		exec( $command, $output, $return_var );
 
+		// Remove JAVA warnings that are not actually errors
+		foreach ( $output as $k => $v ) {
+			if ( strpos( $v, 'Picked up _JAVA_OPTIONS:' ) !== false ) {
+				unset( $output[ $k ] );
+			}
+		}
+
 		// Is this a valid Epub?
 		if ( ! empty( $output ) ) {
 			$this->logError( implode( "\n", $output ) );
@@ -469,7 +477,7 @@ class Epub201 extends Export {
 
 		// Cleanup temporary directory, if any
 		if ( ! empty( $this->tmpDir ) ) {
-			$this->obliterateDir( $this->tmpDir );
+			rmrdir( $this->tmpDir );
 		}
 	}
 
@@ -614,9 +622,7 @@ class Epub201 extends Export {
 	 */
 	protected function scrapeKneadAndSaveCss( $path_to_original_stylesheet, $path_to_copy_of_stylesheet ) {
 
-		$sass = Container::get( 'Sass' );
-		$scss_dir = pathinfo( $path_to_original_stylesheet, PATHINFO_DIRNAME );
-		$path_to_epub_assets = $this->tmpDir . '/OEBPS/assets';
+		$styles = Container::get( 'Styles' );
 
 		$scss = file_get_contents( $path_to_copy_of_stylesheet );
 
@@ -624,24 +630,37 @@ class Epub201 extends Export {
 			$scss .= "\n" . $this->loadTemplate( $this->extraCss );
 		}
 
-		$scss = $sass->applyOverrides( $scss, $this->cssOverrides );
-
-		if ( $sass->isCurrentThemeCompatible( 1 ) ) {
-			$css = $sass->compile(
-				$scss, [
-				$sass->pathToUserGeneratedSass(),
-				$sass->pathToPartials(),
-				$sass->pathToFonts(),
-				get_stylesheet_directory(),
-				]
-			);
-		} elseif ( $sass->isCurrentThemeCompatible( 2 ) ) {
-			$css = $sass->compile( $scss, $sass->defaultIncludePaths( 'epub' ) );
-		} else {
-			$css = static::injectHouseStyles( $scss );
+		$custom_styles = $styles->getEpubPost();
+		if ( $custom_styles && ! empty( $custom_styles->post_content ) ) {
+			// append the user's custom styles to the theme stylesheet prior to compilation
+			$scss .= "\n" . $custom_styles->post_content;
 		}
 
-		// Search for all possible permutations of CSS url syntax: url("*"), url('*'), and url(*)
+		$css = $styles->customize( 'epub', $scss, $this->cssOverrides );
+
+		$scss_dir = pathinfo( $path_to_original_stylesheet, PATHINFO_DIRNAME );
+		$path_to_epub_assets = $this->tmpDir . '/OEBPS/assets';
+		$css = $this->normalizeCssUrls( $css, $scss_dir, $path_to_epub_assets );
+
+		// Overwrite the new file with new info
+		file_put_contents( $path_to_copy_of_stylesheet, $css );
+
+		if ( WP_DEBUG ) {
+			Container::get( 'Sass' )->debug( $css, $scss, 'epub' );
+		}
+
+	}
+
+	/**
+	 * Search for all possible permutations of CSS url syntax -- url("*"), url('*'), and url(*) -- and update URLs as needed.
+	 *
+	 * @param string $css
+	 * @param string $scss_dir
+	 * @param string $path_to_epub_assets
+	 *
+	 * @return string
+	 */
+	protected function normalizeCssUrls( $css, $scss_dir, $path_to_epub_assets ) {
 		$url_regex = '/url\(([\s])?([\"|\'])?(.*?)([\"|\'])?([\s])?\)/i';
 		$css = preg_replace_callback(
 			$url_regex, function ( $matches ) use ( $scss_dir, $path_to_epub_assets ) {
@@ -713,13 +732,7 @@ class Epub201 extends Export {
 			}, $css
 		);
 
-		// Overwrite the new file with new info
-		file_put_contents( $path_to_copy_of_stylesheet, $css );
-
-		if ( WP_DEBUG ) {
-			Container::get( 'Sass' )->debug( $css, $scss, 'epub' );
-		}
-
+		return $css;
 	}
 
 
@@ -931,17 +944,32 @@ class Epub201 extends Export {
 	 */
 	protected function createCopyright( $book_contents, $metadata ) {
 
+		if ( empty( $metadata['pb_book_license'] ) ) {
+			$all_rights_reserved = true;
+		} elseif ( $metadata['pb_book_license'] === 'all-rights-reserved' ) {
+			$all_rights_reserved = true;
+		} else {
+			$all_rights_reserved = false;
+		}
+		if ( ! empty( $metadata['pb_custom_copyright'] ) ) {
+			$has_custom_copyright = true;
+		} else {
+			$has_custom_copyright = false;
+		}
+
 		// HTML
 		$html = '<div id="copyright-page"><div class="ugc">';
 
-		// License
-		$license = $this->doCopyrightLicense( $metadata );
-		if ( $license ) {
-			$html .= $this->kneadHtml( $this->tidy( $license ), 'custom' );
+		// Custom Copyright must override All Rights Reserved
+		if ( ! $has_custom_copyright || ( $has_custom_copyright && ! $all_rights_reserved ) ) {
+			$license = $this->doCopyrightLicense( $metadata );
+			if ( $license ) {
+				$html .= $this->kneadHtml( $this->tidy( $license ), 'custom' );
+			}
 		}
 
 		// Custom copyright
-		if ( ! empty( $metadata['pb_custom_copyright'] ) ) {
+		if ( $has_custom_copyright ) {
 			$html .= $this->kneadHtml( $this->tidy( $metadata['pb_custom_copyright'] ), 'custom' );
 		}
 
@@ -1724,24 +1752,20 @@ class Epub201 extends Export {
 	 */
 	protected function kneadHtml( $html, $type, $pos = 0 ) {
 
-		libxml_use_internal_errors( true );
-
-		// Load HTML snippet into DOMDocument using UTF-8 hack
-		$utf8_hack = '<?xml version="1.0" encoding="UTF-8"?>';
-		$doc = new \DOMDocument();
-		$doc->loadHTML( $utf8_hack . $html );
+		$doc = new HTML5();
+		$dom = $doc->loadHTML( $html );
 
 		// Download images, change to relative paths
-		$doc = $this->scrapeAndKneadImages( $doc );
+		$dom = $this->scrapeAndKneadImages( $dom );
 
 		// Download audio files, change to relative paths
-		$doc = $this->scrapeAndKneadMedia( $doc );
+		$dom = $this->scrapeAndKneadMedia( $dom );
 
 		// Deal with <a href="">, <a href=''>, and other mutations
-		$doc = $this->kneadHref( $doc, $type, $pos );
+		$dom = $this->kneadHref( $dom, $type, $pos );
 
 		// Make sure empty tags (e.g. <b></b>) don't get turned into self-closing versions by adding an empty text node to them.
-		$xpath = new \DOMXPath( $doc );
+		$xpath = new \DOMXPath( $dom );
 		while ( ( $nodes = $xpath->query( '//*[not(text() or node() or self::br or self::hr or self::img)]' ) ) && $nodes->length > 0 ) {
 			foreach ( $nodes as $node ) {
 				/** @var \DOMElement $node */
@@ -1758,16 +1782,14 @@ class Epub201 extends Export {
 
 		// If you are storing multi-byte characters in XML, then saving the XML using saveXML() will create problems.
 		// Ie. It will spit out the characters converted in encoded format. Instead do the following:
-		$html = $doc->saveXML( $doc->documentElement );
+		$html = $dom->saveXML( $dom->documentElement );
 
 		// Remove auto-created <html> <body> and <!DOCTYPE> tags.
-		$html = preg_replace( '/^<!DOCTYPE.+?>/', '', str_replace( [ '<html>', '</html>', '<body>', '</body>' ], [ '', '', '', '' ], $html ) );
+		$html = \Pressbooks\Sanitize\strip_container_tags( $html );
 
 		// Mobi7 hacks
-		$html = $this->transformXML( $utf8_hack . "<html>$html</html>", $this->dir . '/templates/epub201/mobi-hacks.xsl' );
-
-		$errors = libxml_get_errors(); // TODO: Handle errors gracefully
-		libxml_clear_errors();
+		$utf8_hack = '<?xml version="1.0" encoding="UTF-8"?>';
+		$html = $this->transformXML( "{$utf8_hack }<html>{$html}</html>", $this->dir . '/templates/epub201/mobi-hacks.xsl' );
 
 		return $html;
 	}
