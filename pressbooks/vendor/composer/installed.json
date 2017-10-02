@@ -678,6 +678,43 @@
         ]
     },
     {
+        "name": "pressbooks/mix",
+        "version": "2.1",
+        "version_normalized": "2.1.0.0",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/pressbooks/mix.git",
+            "reference": "4cb5d44244468480c24f30ea08070b37711ba864"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/pressbooks/mix/zipball/4cb5d44244468480c24f30ea08070b37711ba864",
+            "reference": "4cb5d44244468480c24f30ea08070b37711ba864",
+            "shasum": ""
+        },
+        "require-dev": {
+            "humanmade/coding-standards": "^0.2.1"
+        },
+        "time": "2017-09-06T21:35:04+00:00",
+        "type": "library",
+        "installation-source": "dist",
+        "autoload": {
+            "psr-4": {
+                "PressbooksMix\\": "inc/"
+            }
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "MIT"
+        ],
+        "authors": [
+            {
+                "name": "Pressbooks (Book Oven Inc.)",
+                "email": "code@pressbooks.com"
+            }
+        ]
+    },
+    {
         "name": "vanilla/htmlawed",
         "version": "v2.2.1.1",
         "version_normalized": "2.2.1.1",
@@ -717,42 +754,5 @@
             }
         ],
         "description": "A composer wrapper for the htmLawed library to purify & filter HTML. Tested with PHPUnit and PhantomJS!"
-    },
-    {
-        "name": "pressbooks/mix",
-        "version": "2.1",
-        "version_normalized": "2.1.0.0",
-        "source": {
-            "type": "git",
-            "url": "https://github.com/pressbooks/mix.git",
-            "reference": "4cb5d44244468480c24f30ea08070b37711ba864"
-        },
-        "dist": {
-            "type": "zip",
-            "url": "https://api.github.com/repos/pressbooks/mix/zipball/4cb5d44244468480c24f30ea08070b37711ba864",
-            "reference": "4cb5d44244468480c24f30ea08070b37711ba864",
-            "shasum": ""
-        },
-        "require-dev": {
-            "humanmade/coding-standards": "^0.2.1"
-        },
-        "time": "2017-09-06T21:35:04+00:00",
-        "type": "library",
-        "installation-source": "dist",
-        "autoload": {
-            "psr-4": {
-                "PressbooksMix\\": "inc/"
-            }
-        },
-        "notification-url": "https://packagist.org/downloads/",
-        "license": [
-            "MIT"
-        ],
-        "authors": [
-            {
-                "name": "Pressbooks (Book Oven Inc.)",
-                "email": "code@pressbooks.com"
-            }
-        ]
     }
 ]
