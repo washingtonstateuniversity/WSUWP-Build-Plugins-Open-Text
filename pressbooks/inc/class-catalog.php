@@ -217,8 +217,7 @@ class Catalog {
 				 * @since 3.9.5.1
 				 *
 				 * @param string $cover The url to cover image.
-				 * @param string $metadata ['pb_cover_image'] The original url to the
-				 *        cover image.
+				 * @param string $original The original url to the cover image.
 				 */
 				$cid = \Pressbooks\Image\attachment_id_from_url( apply_filters( 'pb_cover_image', $cover, $metadata['pb_cover_image'] ) );
 				foreach ( $cover_sizes as $size => $default ) {
@@ -715,6 +714,12 @@ class Catalog {
 	 * @param string $meta_key
 	 */
 	function uploadLogo( $meta_key ) {
+		// Include media utilities
+		if ( ! function_exists( 'media_handle_sideload' ) ) {
+			require_once( ABSPATH . 'wp-admin/includes/image.php' );
+			require_once( ABSPATH . 'wp-admin/includes/file.php' );
+			require_once( ABSPATH . 'wp-admin/includes/media.php' );
+		}
 
 		if ( isset( $_FILES[ $meta_key ]['name'] ) && empty( $_FILES[ $meta_key ]['name'] ) ) {
 			return; // Bail
@@ -1250,7 +1255,7 @@ class Catalog {
 		}
 
 		$url = parse_url( \Pressbooks\Sanitize\canonicalize_url( $_REQUEST['add_book_by_url'] ) );
-		$main = parse_url( network_site_url() );
+		$main = parse_url( network_home_url() );
 
 		if ( strpos( $url['host'], $main['host'] ) === false ) {
 			$_SESSION['pb_errors'][] = __( 'Invalid URL.', 'pressbooks' );

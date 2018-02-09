@@ -180,7 +180,6 @@ function get_media_path( $guid ) {
  */
 function latest_exports() {
 	/**
-	 * @since 3.9.8
 	 * Add custom export formats to the latest exports filetype mapping array.
 	 *
 	 * For example, here's how one might add a hypothetical Word export format:
@@ -190,6 +189,9 @@ function latest_exports() {
 	 *    return $filetypes;
 	 * } );
 	 *
+	 * @since 3.9.8
+	 *
+	 * @param array $value
 	 */
 	$filetypes = apply_filters(
 		'pb_latest_export_filetypes', [
@@ -404,6 +406,8 @@ function check_saxonhe_install() {
 	 * @since 3.9.8
 	 *
 	 * Allows the SaxonHE dependency error to be disabled.
+	 *
+	 * @param bool $value
 	 */
 	return apply_filters( 'pb_odt_has_dependencies', false );
 }
@@ -418,7 +422,7 @@ function check_saxonhe_install() {
 function show_experimental_features( $host = '' ) {
 
 	if ( ! $host ) {
-		$host = parse_url( network_site_url(), PHP_URL_HOST );
+		$host = parse_url( network_home_url(), PHP_URL_HOST );
 	}
 
 	// hosts where experimental features should be hidden
@@ -514,6 +518,8 @@ function disable_comments() {
 		 * Allows comments to be enabled on the root blog by adding a function to this filter that returns false.
 		 *
 		 * @since 3.9.6
+		 *
+		 * @param bool $value
 		 */
 		return apply_filters( 'pb_disable_root_comments', true );
 	}
@@ -602,6 +608,8 @@ function fetch_recommended_plugins() {
 	 * Filter the URL of the Pressbooks Recommended Plugins server.
 	 *
 	 * @since 4.0.0
+	 *
+	 * @param string $value
 	 */
 	$url = $http_url = apply_filters( 'pb_recommended_plugins_url', 'https://pressbooks-plugins.now.sh' ) . '/api/plugin-recommendations';
 	$ssl = wp_http_supports( [ 'ssl' ] );
@@ -752,6 +760,15 @@ function email_error_log( $emails, $subject, $message ) {
 		}
 	);
 
+	/**
+	 * Filter an array of email addresses error logs are sent to
+	 *
+	 * @since 4.3.3
+	 *
+	 * @param array $emails
+	 */
+	$emails = apply_filters( 'pb_error_log_emails', $emails );
+
 	foreach ( $emails as $email ) {
 		// Call pluggable
 		\wp_mail( $email, $subject, $message );
@@ -821,6 +838,8 @@ function remote_get_retry( $url, $args, $retry = 3, $attempts = 0, $response = [
 		 *
 		 * @since 3.9.6
 		 * @deprecated 4.3.0 Use pb_remote_get_retry_response_codes isntead.
+		 *
+		 * @param array $value
 		 */
 		apply_filters( 'pressbooks_remote_get_retry_response_codes', [ 400 ] )
 	);
@@ -841,6 +860,8 @@ function remote_get_retry( $url, $args, $retry = 3, $attempts = 0, $response = [
 		 *
 		 * @since 3.9.6
 		 * @deprecated 4.3.0 Use pb_remote_get_retry_wait_time isntead.
+		 *
+		 * @param int $value
 		 */
 		apply_filters( 'pressbooks_remote_get_retry_wait_time', 1000 )
 	);
@@ -896,10 +917,17 @@ function mail_from_name( $name ) {
  *
  * @param string $src
  * @param string $dest
+ * @param array $excludes (optional, supports shell wildcard patterns, add a unix like trailing slash for folders)
+ * @param array $includes (optional, supports shell wildcard patterns, add a unis like trailing slash for folders)
  *
  * @return bool
  */
-function rcopy( $src, $dest ) {
+function rcopy( $src, $dest, $excludes = [], $includes = [] ) {
+
+	// Remove trailing slashes
+	$src = rtrim( $src, '\\/' );
+	$dest = rtrim( $dest, '\\/' );
+
 	if ( ! is_dir( $src ) ) {
 		return false;
 	}
@@ -912,12 +940,47 @@ function rcopy( $src, $dest ) {
 
 	$i = new \DirectoryIterator( $src );
 	foreach ( $i as $f ) {
+		$include_this_file = ( empty( $includes ) ? true : false );
 		if ( $f->isFile() ) {
-			if ( false === copy( $f->getRealPath(), "$dest/" . $f->getFilename() ) ) {
-				return false;
+			// File
+			foreach ( $excludes as $exclude ) {
+				if ( fnmatch( $exclude, "$f" ) ) {
+					continue 2; // Excluded, go to next file
+				}
+			}
+			foreach ( $includes as $include ) {
+				if ( fnmatch( $include, "$f" ) ) {
+					$include_this_file = true;
+					break;
+				}
+			}
+			if ( $include_this_file ) {
+				if ( false === copy( $f->getRealPath(), "$dest/$f" ) ) {
+					return false;
+				}
 			}
 		} elseif ( ! $f->isDot() && $f->isDir() ) {
-			\Pressbooks\Utility\rcopy( $f->getRealPath(), "$dest/$f" );
+			// Directory
+			foreach ( $excludes as $exclude ) {
+				if ( str_ends_with( $exclude, '/' ) ) {
+					if ( fnmatch( rtrim( $exclude, '/' ), "$f" ) ) {
+						continue 2; // Excluded, go to next file
+					}
+				}
+			}
+			$dir_pattern_count = 0;
+			foreach ( $includes as $include ) {
+				if ( str_ends_with( $include, '/' ) ) {
+					$dir_pattern_count++;
+					if ( fnmatch( rtrim( $include, '/' ), "$f" ) ) {
+						$include_this_file = true;
+						break;
+					}
+				}
+			}
+			if ( $include_this_file || $dir_pattern_count === 0 ) {
+				\Pressbooks\Utility\rcopy( $f->getRealPath(), "$dest/$f", $excludes, $includes );
+			}
 		}
 	}
 	return true;
@@ -986,4 +1049,105 @@ function word_count( $content ) {
 	}
 
 	return $n;
+}
+
+/**
+ * Because realpath() does not work on files that do not exist... Handles paths and URLs
+ *
+ * @param string $path
+ *
+ * @return string
+ */
+function absolute_path( $path ) {
+
+	if ( filter_var( $path, FILTER_VALIDATE_URL ) !== false ) {
+		$url = $path;
+		$path = parse_url( $path, PHP_URL_PATH );
+	}
+
+	$new_path = str_replace( '\\', '/', $path );
+	$parts = array_filter( explode( '/', $new_path ), 'strlen' );
+	$absolutes = [];
+	foreach ( $parts as $part ) {
+		if ( '.' === $part ) {
+			continue;
+		}
+		if ( '..' === $part ) {
+			array_pop( $absolutes );
+		} else {
+			$absolutes[] = $part;
+		}
+	}
+
+	$new_path = '/' . implode( '/', $absolutes );
+	if ( isset( $url ) ) {
+		$new_path = str_lreplace( $path, $new_path, $url );
+	}
+
+	return $new_path;
+}
+
+/**
+ * Compare URL domain names (not subdomain)
+ *
+ * @param string $url1
+ * @param string $url2
+ *
+ * @return bool
+ */
+function urls_have_same_host( $url1, $url2 ) {
+
+	$host1 = parse_url( $url1, PHP_URL_HOST );
+	$host2 = parse_url( $url2, PHP_URL_HOST );
+	if ( ! $host1 || ! $host2 ) {
+		return false;
+	}
+
+	$host_names1 = explode( '.', $host1 );
+	if ( count( $host_names1 ) > 1 ) {
+		$bottom_host_name1 = $host_names1[ count( $host_names1 ) - 2 ] . '.' . $host_names1[ count( $host_names1 ) - 1 ];
+	} else {
+		$bottom_host_name1 = $host1;
+	}
+
+	$host_names2 = explode( '.', $host2 );
+	if ( count( $host_names2 ) > 1 ) {
+		$bottom_host_name2 = $host_names2[ count( $host_names2 ) - 2 ] . '.' . $host_names2[ count( $host_names2 ) - 1 ];
+	} else {
+		$bottom_host_name2 = $host2;
+	}
+
+	$same_host = ( $bottom_host_name1 === $bottom_host_name2 );
+
+	return $same_host;
+}
+
+/**
+ * Blade cache path
+ *
+ * @return string
+ */
+function get_cache_path() {
+	$cache = wp_upload_dir()['basedir'] . '/cache';
+	if ( ! file_exists( $cache ) ) {
+		wp_mkdir_p( $cache );
+	}
+	return $cache;
+}
+
+/**
+ * Check whether an array is zero-indexed and sequential
+ *
+ * @param mixed $arr
+ *
+ * @return bool
+ */
+function is_assoc( $arr ) {
+	if ( ! is_array( $arr ) ) {
+		return false;
+	}
+	if ( [] === $arr ) {
+		return false;
+	}
+	return array_keys( $arr ) !== range( 0, count( $arr ) - 1 );
 }

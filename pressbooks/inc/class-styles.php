@@ -6,6 +6,9 @@
 
 namespace Pressbooks;
 
+/**
+ * Custom Styles Feature(s)
+ */
 class Styles {
 
 	const PAGE = 'pb_custom_styles';
@@ -58,26 +61,12 @@ class Styles {
 		}
 
 		// Code Mirror
-		// TODO: Use built-in WP when released, see: https://core.trac.wordpress.org/ticket/12423
 		if ( isset( $_REQUEST['page'] ) && $_REQUEST['page'] === $this::PAGE ) {
-			$codemirror_version = '5.29.0';
-			$assets = new \PressbooksMix\Assets( 'pressbooks', 'plugin' );
-			add_action(
-				'wp_default_scripts', function ( \WP_Scripts $scripts ) use ( $codemirror_version, $assets ) {
-					$scripts->add( 'codemirror',  $assets->getPath( 'scripts/codemirror.js' ), [], $codemirror_version );
-					$scripts->add( 'codemirror-mode-css', $assets->getPath( 'scripts/codemirror-mode-css.js' ), [ 'codemirror' ], $codemirror_version );
-				}
-			);
-			add_action(
-				'wp_default_styles', function ( \WP_Styles $styles ) use ( $codemirror_version, $assets ) {
-					$codemirror_version = '5.29.0';
-					$styles->add( 'codemirror',  $assets->getPath( 'styles/codemirror.css' ), [], $codemirror_version );
-				}
-			);
 			add_action(
 				'admin_enqueue_scripts', function () {
-					wp_enqueue_script( 'codemirror-mode-css' );
-					wp_enqueue_style( 'codemirror' );
+					wp_enqueue_script( 'wp-codemirror' );
+					wp_enqueue_script( 'csslint' );
+					wp_enqueue_style( 'wp-codemirror' );
 				}
 			);
 		}
@@ -140,7 +129,7 @@ class Styles {
 	/**
 	 * Custom style rules will be saved in a custom post type: custom-style
 	 */
-	function registerPosts() {
+	public function registerPosts() {
 		$args = [
 			'exclude_from_search' => true,
 			'public' => false,
@@ -189,7 +178,7 @@ class Styles {
 	 *
 	 * @return \WP_Post|false
 	 */
-	public  function getPost( $slug ) {
+	public function getPost( $slug ) {
 
 		// Supported post names (ie. slugs)
 		$supported = array_keys( $this->supported );
@@ -313,7 +302,7 @@ class Styles {
 	 *
 	 * @return bool
 	 */
-	public  function isCurrentThemeCompatible( $version = 1, $theme = null ) {
+	public function isCurrentThemeCompatible( $version = 1, $theme = null ) {
 
 		if ( null === $theme ) {
 			$theme = wp_get_theme();
@@ -400,6 +389,13 @@ class Styles {
 
 		$scss = $this->applyOverrides( $scss, $overrides );
 
+		// Apply Theme Options
+		if ( $type === 'prince' ) {
+			$scss = apply_filters( 'pb_pdf_css_override', $scss );
+		} else {
+			$scss = apply_filters( "pb_{$type}_css_override", $scss );
+		}
+
 		if ( $this->isCurrentThemeCompatible( 1 ) ) {
 			$css = $this->sass->compile(
 				$scss,
@@ -477,7 +473,7 @@ class Styles {
 	 *
 	 * @return void
 	 */
-	function updateWebBookStyleSheet() {
+	public function updateWebBookStyleSheet() {
 
 		$overrides = apply_filters( 'pb_web_css_override', '' ) . "\n";
 
@@ -506,18 +502,19 @@ class Styles {
 	}
 
 	/**
-	 * If the current theme's version has increased, call updateWebBookStyleSheet().
+	 * If the current theme's version has increased, do SCSS stuff
 	 *
 	 * @return bool
 	 */
-	public function maybeUpdateWebBookStylesheet() {
+	public function maybeUpdateStylesheets() {
 		$theme = wp_get_theme();
 		$current_version = $theme->get( 'Version' );
-		$last_version = get_option( 'pressbooks_theme_version', $current_version );
+		$last_version = get_option( 'pb_theme_version', $current_version );
 
 		if ( version_compare( $current_version, $last_version ) > 0 ) {
+			( new \Pressbooks\Modules\ThemeOptions\ThemeOptions() )->clearCache();
 			$this->updateWebBookStyleSheet();
-			update_option( 'pressbooks_theme_version', $current_version );
+			update_option( 'pb_theme_version', $current_version );
 			return true;
 		}
 
@@ -556,7 +553,7 @@ class Styles {
 	 *
 	 * @return string
 	 */
-	function renderDropdownForSlugs( $slug ) {
+	public function renderDropdownForSlugs( $slug ) {
 
 		$select_id = $select_name = 'slug';
 		$redirect_url = get_admin_url( get_current_blog_id(), '/themes.php?page=' . $this::PAGE . '&slug=' );
@@ -598,7 +595,7 @@ class Styles {
 	 *
 	 * @return string
 	 */
-	function renderRevisionsTable( $slug, $post_id ) {
+	public function renderRevisionsTable( $slug, $post_id ) {
 
 		$args = [
 			'posts_per_page' => 10,
@@ -626,7 +623,7 @@ class Styles {
 	/**
 	 * Save custom styles to database
 	 */
-	function formSubmit() {
+	public function formSubmit() {
 
 		if ( empty( $this->isFormSubmission() ) || empty( current_user_can( 'edit_others_posts' ) ) ) {
 			// Don't do anything in this function, bail.
@@ -647,6 +644,11 @@ class Styles {
 				error_log( __METHOD__ . ' error: unexpected value for post_id_integrity' );
 				\Pressbooks\Redirect\location( $redirect_url . '&custom_styles_error=true' );
 			}
+
+			// Remove wp_filter_post_kses, this causes CSS escaping issues
+			remove_filter( 'content_save_pre', 'wp_filter_post_kses' );
+			remove_filter( 'content_filtered_save_pre', 'wp_filter_post_kses' );
+			remove_all_filters( 'content_save_pre' );
 
 			// Write to database
 			$my_post = [

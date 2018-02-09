@@ -96,6 +96,9 @@ class EbookOptions extends \Pressbooks\Options {
 		 * Add custom settings fields.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param string $arg1
+		 * @param string $arg2
 		 */
 		do_action( 'pb_theme_options_ebook_add_settings_fields', $_page, $_section );
 
@@ -205,7 +208,9 @@ class EbookOptions extends \Pressbooks\Options {
 	 */
 	static function getDefaults() {
 		/**
-		 * @since 3.9.7 TODO
+		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_ebook_defaults', [
@@ -236,6 +241,8 @@ class EbookOptions extends \Pressbooks\Options {
 		 * Allow custom boolean options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_ebook_booleans', [
@@ -254,6 +261,8 @@ class EbookOptions extends \Pressbooks\Options {
 		 * Allow custom string options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters( 'pb_theme_options_ebook_strings', [] );
 	}
@@ -268,6 +277,8 @@ class EbookOptions extends \Pressbooks\Options {
 		 * Allow custom integer options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters( 'pb_theme_options_ebook_integers', [] );
 	}
@@ -282,6 +293,8 @@ class EbookOptions extends \Pressbooks\Options {
 		 * Allow custom float options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters( 'pb_theme_options_ebook_floats', [] );
 	}
@@ -296,6 +309,8 @@ class EbookOptions extends \Pressbooks\Options {
 		 * Allow custom predifined options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_ebook_predefined', [
@@ -314,15 +329,20 @@ class EbookOptions extends \Pressbooks\Options {
 	 * @since 3.9.8
 	 */
 	static function scssOverrides( $scss ) {
+
+		$styles = \Pressbooks\Container::get( 'Styles' );
+		$v2_compatible = $styles->isCurrentThemeCompatible( 2 );
+
 		// --------------------------------------------------------------------
 		// Global Options
 
-		$custom_styles = \Pressbooks\Container::get( 'Styles' );
 		$options = get_option( 'pressbooks_theme_options_global' );
 
 		if ( ! $options['chapter_numbers'] ) {
-			if ( $custom_styles->isCurrentThemeCompatible( 2 ) ) {
-				$scss .= "\$chapter-number-display: none; \n";
+			if ( $v2_compatible ) {
+				$styles->getSass()->setVariables( [
+					'chapter-number-display' => 'none',
+				] );
 			} else {
 				$scss .= "div.part-title-wrap > .part-number, div.chapter-title-wrap > .chapter-number { display: none !important; } \n";
 			}
@@ -335,11 +355,22 @@ class EbookOptions extends \Pressbooks\Options {
 
 		// Indent paragraphs?
 		if ( 'skiplines' === $options['ebook_paragraph_separation'] ) {
-			if ( $custom_styles->isCurrentThemeCompatible( 2 ) ) {
-				$scss .= "\$para-margin-top: 1em; \n";
-				$scss .= "\$para-indent: 0; \n";
+			if ( $v2_compatible ) {
+				$styles->getSass()->setVariables( [
+					'para-margin-top' => '1em',
+					'para-indent' => '0',
+				] );
 			} else {
 				$scss .= "p + p, .indent, div.ugc p.indent { text-indent: 0; margin-top: 1em; } \n";
+			}
+		} else {
+			if ( $v2_compatible ) {
+				$styles->getSass()->setVariables( [
+					'para-margin-top' => '0',
+					'para-indent' => '1em',
+				] );
+			} else {
+				$scss .= "p + p, .indent, div.ugc p.indent { text-indent: 1em; margin-top: 0em; } \n";
 			}
 		}
 

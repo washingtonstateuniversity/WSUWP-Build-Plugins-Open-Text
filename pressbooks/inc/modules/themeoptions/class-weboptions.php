@@ -107,6 +107,9 @@ class WebOptions extends \Pressbooks\Options {
 		 * Add custom settings fields.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param string $arg1
+		 * @param string $arg2
 		 */
 		do_action( 'pb_theme_options_web_add_settings_fields', $_page, $_section );
 
@@ -237,7 +240,9 @@ class WebOptions extends \Pressbooks\Options {
 	 */
 	static function getDefaults() {
 		/**
-		 * @since 3.9.7 TODO
+		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_web_defaults', [
@@ -269,6 +274,8 @@ class WebOptions extends \Pressbooks\Options {
 		 * Allow custom boolean options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_web_booleans', [
@@ -288,6 +295,8 @@ class WebOptions extends \Pressbooks\Options {
 		 * Allow custom string options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters( 'pb_theme_options_web_strings', [] );
 	}
@@ -302,6 +311,8 @@ class WebOptions extends \Pressbooks\Options {
 		 * Allow custom integer options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters( 'pb_theme_options_web_integers', [] );
 	}
@@ -316,6 +327,8 @@ class WebOptions extends \Pressbooks\Options {
 		 * Allow custom float options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters( 'pb_theme_options_web_floats', [] );
 	}
@@ -330,6 +343,8 @@ class WebOptions extends \Pressbooks\Options {
 		 * Allow custom predifined options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_web_predefined', [
@@ -349,23 +364,27 @@ class WebOptions extends \Pressbooks\Options {
 	 */
 	static function scssOverrides( $scss ) {
 
-		$custom_styles = \Pressbooks\Container::get( 'Styles' );
-		$v2_compatible = $custom_styles->isCurrentThemeCompatible( 2 );
+		$styles = \Pressbooks\Container::get( 'Styles' );
+		$v2_compatible = $styles->isCurrentThemeCompatible( 2 );
 
 		$options = get_option( 'pressbooks_theme_options_web' );
 
 		if ( isset( $options['paragraph_separation'] ) ) {
 			if ( 'indent' === $options['paragraph_separation'] ) {
 				if ( $v2_compatible ) {
-					$scss .= "\$para-margin-top: 0; \n";
-					$scss .= "\$para-indent: 1em; \n";
+					$styles->getSass()->setVariables( [
+						'para-margin-top' => '0',
+						'para-indent' => '1em',
+					] );
 				} else {
 					$scss .= "* + p { text-indent: 1em; margin-top: 0; margin-bottom: 0; } \n";
 				}
 			} elseif ( 'skiplines' === $options['paragraph_separation'] ) {
 				if ( $v2_compatible ) {
-					$scss .= "\$para-margin-top: 1em; \n";
-					$scss .= "\$para-indent: 0; \n";
+					$styles->getSass()->setVariables( [
+						'para-margin-top' => '1em',
+						'para-indent' => '0',
+					] );
 				} else {
 					$scss .= "p + p { text-indent: 0em; margin-top: 1em; } \n";
 				}

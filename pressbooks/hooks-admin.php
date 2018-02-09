@@ -30,6 +30,20 @@ require( PB_PLUGIN_DIR . 'inc/admin/plugins/namespace.php' );
 $is_book = Book::isBook();
 
 // -------------------------------------------------------------------------------------------------------------------
+// Check for updates
+// -------------------------------------------------------------------------------------------------------------------
+
+if ( ! $is_book ) {
+	$updater = new \Puc_v4p2_Vcs_PluginUpdateChecker(
+		new \Pressbooks\Updater( 'https://github.com/pressbooks/pressbooks/' ),
+		__DIR__ . '/pressbooks.php', // Fully qualified path to the main plugin file
+		'pressbooks',
+		24
+	);
+	$updater->setBranch( 'master' );
+}
+
+// -------------------------------------------------------------------------------------------------------------------
 // Look & feel of admin interface and Dashboard
 // -------------------------------------------------------------------------------------------------------------------
 
@@ -51,7 +65,7 @@ add_action( 'admin_menu', '\Pressbooks\Admin\Diagnostics\add_menu', 30 );
 if ( $is_book ) {
 	// Aggressively replace default interface
 	add_action( 'init', [ '\Pressbooks\Modules\SearchAndReplace\SearchAndReplace', 'init' ] );
-	add_action( 'init', [ '\Pressbooks\Modules\ThemeOptions\ThemeOptions', 'init' ] );
+	add_action( 'after_setup_theme', [ '\Pressbooks\Modules\ThemeOptions\ThemeOptions', 'init' ] );
 	add_action( 'admin_init', '\Pressbooks\Redirect\redirect_away_from_bad_urls' );
 	add_action( 'admin_menu', '\Pressbooks\Admin\Laf\replace_book_admin_menu', 1 );
 	add_action( 'admin_menu', [ '\Pressbooks\Admin\Delete\Book', 'init' ] );
@@ -59,6 +73,7 @@ if ( $is_book ) {
 	add_filter( 'submenu_file', '\Pressbooks\Admin\Laf\fix_submenu_file', 10, 2 );
 	add_action( 'wp_dashboard_setup', '\Pressbooks\Admin\Dashboard\replace_dashboard_widgets' );
 	remove_action( 'welcome_panel', 'wp_welcome_panel' );
+	remove_action( 'try_gutenberg_panel', 'wp_try_gutenberg_panel' );
 	add_action( 'customize_register', '\Pressbooks\Admin\Laf\customize_register', 1000 );
 	add_filter( 'all_plugins', '\Pressbooks\Admin\Plugins\filter_plugins', 10 );
 	// Disable theme customizer
@@ -76,6 +91,9 @@ if ( is_network_admin() ) {
 if ( true === is_main_site() ) {
 	add_action( 'wp_dashboard_setup', '\Pressbooks\Admin\Dashboard\replace_root_dashboard_widgets' );
 }
+
+// Replace strings
+add_action( 'gettext', '\Pressbooks\Admin\Laf\sites_to_books', 3, 20 );
 
 // Javascript, Css
 add_action( 'admin_init', '\Pressbooks\Admin\Laf\init_css_js' );
@@ -143,6 +161,7 @@ if ( $is_book ) {
 	add_action( 'save_post', '\Pressbooks\Book::consolidatePost', 10, 2 );
 	add_action( 'save_post_metadata', '\Pressbooks\Admin\Metaboxes\upload_cover_image', 10, 2 );
 	add_action( 'save_post_metadata', '\Pressbooks\Admin\Metaboxes\add_required_data', 20, 2 );
+	add_action( 'save_post_metadata', '\Pressbooks\Admin\Metaboxes\save_subject_metadata', 10, 2 );
 	add_action( 'added_post_meta', '\Pressbooks\Admin\Metaboxes\title_update', 10, 4 );
 	add_action( 'updated_post_meta', '\Pressbooks\Admin\Metaboxes\title_update', 10, 4 );
 	add_action( 'updated_post_meta', '\Pressbooks\L10n\install_book_locale', 10, 4 );
@@ -210,10 +229,6 @@ if ( $is_book ) {
 	add_filter( 'pb_pdf_css_override', [ '\Pressbooks\Modules\ThemeOptions\PDFOptions', 'scssOverrides' ] );
 	add_filter( 'pb_web_css_override', [ '\Pressbooks\Modules\ThemeOptions\WebOptions', 'scssOverrides' ] );
 }
-
-// Theme Lock
-add_action( 'admin_init', '\Pressbooks\Theme\Lock::restrictThemeManagement' );
-add_action( 'update_option_pressbooks_export_options', '\Pressbooks\Theme\Lock::toggleThemeLock', 10, 3 );
 
 // -------------------------------------------------------------------------------------------------------------------
 // "Catch-all" routines, must come after taxonomies and friends

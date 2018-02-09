@@ -511,6 +511,9 @@ class PDFOptions extends \Pressbooks\Options {
 		 * Add custom settings fields.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param string $arg1
+		 * @param string $arg2
 		 */
 		do_action( 'pb_theme_options_pdf_add_settings_fields', $_page, $_section );
 
@@ -1349,7 +1352,9 @@ class PDFOptions extends \Pressbooks\Options {
 	 */
 	static function getDefaults() {
 		/**
-		 * @since 3.9.7 TODO
+		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_pdf_defaults', [
@@ -1393,7 +1398,99 @@ class PDFOptions extends \Pressbooks\Options {
 	 * @return array $defaults
 	 */
 	static function filterDefaults( $defaults ) {
+
+		// SASS => WP
+		$overrides = [
+			'body-font-size' => 'pdf_body_font_size',
+			'body-line-height' => 'pdf_body_line_height',
+			'page-margin-top' => 'pdf_page_margin_top',
+			'page-margin-inside' => 'pdf_page_margin_inside',
+			'page-margin-bottom' => 'pdf_page_margin_bottom',
+			'page-margin-outside' => 'pdf_page_margin_outside',
+			'front-matter-running-content-left' => 'running_content_front_matter_left',
+			'front-matter-running-content-right' => 'running_content_front_matter_right',
+			'introduction-running-content-left' => 'running_content_introduction_left',
+			'introduction-running-content-right' => 'running_content_introduction_right',
+			'part-running-content-left' => 'running_content_part_left',
+			'part-running-content-right' => 'running_content_part_right',
+			'chapter-running-content-left' => 'running_content_chapter_left',
+			'chapter-running-content-right' => 'running_content_chapter_right',
+			'back-matter-running-content-left' => 'running_content_back_matter_left',
+			'back-matter-running-content-right' => 'running_content_back_matter_right',
+		];
+
+		$transient_name = 'pressbooks_theme_options_pdf_parsed_sass_variables';
+		$parsed_sass_variables = get_transient( $transient_name );
+		if ( $parsed_sass_variables === false ) {
+			// Order of files matter. If a variable is duplicated in other files then the last one takes precedence
+			$parsed_sass_variables = [];
+			$sass = \Pressbooks\Container::get( 'Sass' );
+			$path_to_global = $sass->pathToGlobals();
+			$path_to_theme = get_stylesheet_directory();
+			$files = [
+				$path_to_global . '/variables/_elements.scss',
+				$path_to_global . '/variables/_structure.scss',
+				$path_to_theme . '/assets/styles/components/_elements.scss',
+				$path_to_theme . '/assets/styles/components/_structure.scss',
+			];
+			foreach ( $files as $file ) {
+				if ( file_exists( $file ) ) {
+					$parsed_sass_variables[] = $sass->parseVariables( file_get_contents( $file ) );
+				}
+			}
+			set_transient( $transient_name, $parsed_sass_variables );
+		}
+
+		foreach ( $parsed_sass_variables as $parsed_variables ) {
+			foreach ( $overrides as $sass_var => $wp_option ) {
+				if ( isset( $parsed_variables[ $sass_var ] ) ) {
+					$val = self::parseSassValue( $parsed_variables[ $sass_var ] );
+					if ( ! empty( $val ) ) {
+						if ( in_array( $wp_option, self::getFloatOptions(), true ) ) {
+							$val = (float) preg_replace( '/[^0-9.]/', '', $val ); // Extract digits and periods
+						} elseif ( in_array( $wp_option, self::getIntegerOptions(), true ) ) {
+							$val = (int) preg_replace( '/[^0-9]/', '', $val ); // Extract digits
+						} elseif ( in_array( $wp_option, self::getBooleanOptions(), true ) ) {
+							$val = filter_var( $val, FILTER_VALIDATE_BOOLEAN ); // Convert to boolean
+						} elseif ( strpos( $wp_option, 'running_content', true ) ) {
+							$val = self::replaceRunningContentStrings( $val );
+						}
+						$defaults[ $wp_option ] = $val; // Override default with new value
+					}
+				}
+			}
+		}
+
 		return $defaults;
+	}
+
+	/**
+	 * @param string $val
+	 *
+	 * @return string
+	 */
+	static protected function parseSassValue( $val ) {
+
+		if ( substr( $val, 0, 1 ) === '(' ) {
+			// We think this is a Sass Map
+			preg_match( '/prince:([^,]+)/', $val, $matches );
+			if ( ! empty( $matches[1] ) ) {
+				return trim( $matches[1] );
+			}
+			return ''; // Did not find prince mapping
+		}
+
+		if ( substr( $val, 0, 7 ) === 'string(' ) {
+			// We think this is one of our running content variables
+			preg_match( '/string\((.+?)\)/', $val, $matches );
+			if ( ! empty( $matches[1] ) ) {
+				return trim( str_replace( '-', '_', "%{$matches[1]}%" ) );
+			}
+			return ''; // Did not find what we were looking for
+		}
+
+		// Use as is
+		return $val;
 	}
 
 	/**
@@ -1406,6 +1503,8 @@ class PDFOptions extends \Pressbooks\Options {
 		 * Allow custom boolean options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_pdf_booleans', [
@@ -1428,6 +1527,8 @@ class PDFOptions extends \Pressbooks\Options {
 		 * Allow custom string options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_pdf_strings', [
@@ -1461,10 +1562,11 @@ class PDFOptions extends \Pressbooks\Options {
 		 * Allow custom integer options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_pdf_integers', [
-			'pdf_body_font_size',
 			'widows',
 			'orphans',
 			]
@@ -1481,10 +1583,13 @@ class PDFOptions extends \Pressbooks\Options {
 		 * Allow custom float options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_pdf_floats', [
-			'pdf_body_line_height',
+				'pdf_body_font_size',
+				'pdf_body_line_height',
 			]
 		);
 	}
@@ -1499,6 +1604,8 @@ class PDFOptions extends \Pressbooks\Options {
 		 * Allow custom predifined options to be passed to sanitization routines.
 		 *
 		 * @since 3.9.7
+		 *
+		 * @param array $value
 		 */
 		return apply_filters(
 			'pb_theme_options_pdf_predefined', [
@@ -1549,6 +1656,43 @@ class PDFOptions extends \Pressbooks\Options {
 	}
 
 	/**
+	 * Replace running content strings with tags.
+	 *
+	 * @param string $input
+	 *
+	 * @return string
+	 *
+	 * @since 4.5.0
+	 */
+	static function replaceRunningContentStrings( $input ) {
+		return str_replace(
+			[
+				'string(book-title)',
+				'string(book-subtitle)',
+				'string(book-author)',
+				'string(part-number)',
+				'string(part-title)',
+				'string(section-title)',
+				'string(chapter-author)',
+				'string(chapter-subtitle)',
+				'',
+			],
+			[
+				'%book_title%',
+				'%book_subtitle%',
+				'%book_author%',
+				'%part_number%',
+				'%part_title%',
+				'%section_title%',
+				'%section_author%',
+				'%section_subtitle%',
+				'%blank%',
+			],
+			$input
+		);
+	}
+
+	/**
 	 * Apply overrides.
 	 *
 	 * @param string $scss
@@ -1558,25 +1702,30 @@ class PDFOptions extends \Pressbooks\Options {
 	 * @since 3.9.8
 	 */
 	static function scssOverrides( $scss ) {
-		$scss .= "/* Theme Options */\n";
+
+		$styles = \Pressbooks\Container::get( 'Styles' );
+		$v2_compatible = $styles->isCurrentThemeCompatible( 2 );
+
+		if ( ! $v2_compatible ) {
+			$scss .= "/* Theme Options */\n";
+		}
 
 		// --------------------------------------------------------------------
 		// Global Options
-
-		$custom_syles = \Pressbooks\Container::get( 'Styles' );
-		$v2_compatible = $custom_syles->isCurrentThemeCompatible( 2 );
 
 		$options = get_option( 'pressbooks_theme_options_global' );
 
 		// Should we display chapter numbers? True (default) or false.
 		if ( ! $options['chapter_numbers'] ) {
 			if ( $v2_compatible ) {
-				$scss .= "\$chapter-number-display: none; \n";
-				$scss .= "\$part-number-display: none; \n";
-				$scss .= "\$toc-chapter-number-display: none; \n";
-				$scss .= "\$toc-part-number-display: none; \n";
+				$styles->getSass()->setVariables( [
+					'chapter-number-display' => 'none',
+					'part-number-display' => 'none',
+					'toc-chapter-number-display' => 'none',
+					'toc-part-number-display' => 'none',
+				] );
 			} else {
-				$scss .= "div.part-title-wrap > .part-number, div.chapter-title-wrap > .chapter-number, #toc .part a::before, #toc .chapter a::before { display: none !important; } \n";
+				$scss .= "div.part-title-wrap > .part-number, div.chapter-title-wrap > .chapter-number, #toc .part a::before, #toc .chapter a::before { display: none !important; } \n";  // TODO: NO
 			}
 		}
 
@@ -1588,21 +1737,17 @@ class PDFOptions extends \Pressbooks\Options {
 		// Change body font size
 		if ( $v2_compatible && isset( $options['pdf_body_font_size'] ) ) {
 			$fontsize = $options['pdf_body_font_size'] . 'pt';
-			$scss .= "\$body-font-size: (\n
-				epub: medium,\n
-				prince: $fontsize,
-				web: 14pt\n
-			); \n";
+			$styles->getSass()->setVariables( [
+				'body-font-size' => "(epub: medium, prince: $fontsize, web: 14pt)",
+			] );
 		}
 
 		// Change body line height
 		if ( $v2_compatible && isset( $options['pdf_body_line_height'] ) ) {
 			$lineheight = $options['pdf_body_line_height'] . 'em';
-			$scss .= "\$body-line-height: (\n
-				epub: 1.4em,\n
-				prince: $lineheight,
-				web: 1.8em,\n
-			); \n";
+				$styles->getSass()->setVariables( [
+					'body-line-height' => "(epub: 1.4em, prince: $lineheight, web: 1.8em)",
+				] );
 		}
 
 		// Page dimensions
@@ -1610,33 +1755,30 @@ class PDFOptions extends \Pressbooks\Options {
 		$height = $options['pdf_page_height'];
 
 		if ( $v2_compatible ) {
-			$scss .= "\$page-width: $width; \n";
-			$scss .= "\$page-height: $height; \n";
+			$styles->getSass()->setVariables( [
+				'page-width' => $width,
+				'page-height' => $height,
+			] );
 		} else {
 			$scss .= "@page { size: $width $height; } \n";
 		}
 
 		// Margins
-		$outside = ( isset( $options['pdf_page_margin_outside'] ) ) ? $options['pdf_page_margin_outside'] : '2cm';
-		$inside = ( isset( $options['pdf_page_margin_inside'] ) ) ? $options['pdf_page_margin_inside'] : '2cm';
-		$top = ( isset( $options['pdf_page_margin_top'] ) ) ? $options['pdf_page_margin_top'] : '2cm';
-		$bottom = ( isset( $options['pdf_page_margin_bottom'] ) ) ? $options['pdf_page_margin_bottom'] : '2cm';
-
 		if ( $v2_compatible ) {
-			$scss .= "\$page-margin-left-top: $top; \n";
-			$scss .= "\$page-margin-left-right: $inside; \n";
-			$scss .= "\$page-margin-left-bottom: $bottom; \n";
-			$scss .= "\$page-margin-left-left: $outside; \n";
-			$scss .= "\$page-margin-right-top: $top; \n";
-			$scss .= "\$page-margin-right-right: $outside; \n";
-			$scss .= "\$page-margin-right-bottom: $bottom; \n";
-			$scss .= "\$page-margin-right-left: $inside; \n";
+			$styles->getSass()->setVariables( [
+				'page-margin-top' => ( isset( $options['pdf_page_margin_top'] ) ) ? $options['pdf_page_margin_top'] : '2cm',
+				'page-margin-inside' => ( isset( $options['pdf_page_margin_inside'] ) ) ? $options['pdf_page_margin_inside'] : '2cm',
+				'page-margin-bottom' => ( isset( $options['pdf_page_margin_bottom'] ) ) ? $options['pdf_page_margin_bottom'] : '2cm',
+				'page-margin-outside' => ( isset( $options['pdf_page_margin_outside'] ) ) ? $options['pdf_page_margin_outside'] : '2cm',
+			] );
 		}
 
 		// Should we display crop marks? True or false (default).
 		if ( 1 === absint( $options['pdf_crop_marks'] ) ) {
 			if ( $v2_compatible ) {
-				$scss .= "\$page-cropmarks: crop; \n";
+				$styles->getSass()->setVariables( [
+					'page-cropmarks' => 'crop',
+				] );
 			} else {
 				$scss .= "@page { marks: crop } \n";
 			}
@@ -1645,13 +1787,17 @@ class PDFOptions extends \Pressbooks\Options {
 		// Hyphens?
 		if ( 1 === absint( $options['pdf_hyphens'] ) ) {
 			if ( $v2_compatible ) {
-				$scss .= "\$para-hyphens: auto; \n"; // TODO
+				$styles->getSass()->setVariables( [
+					'para-hyphens' => 'auto',
+				] );
 			} else {
 				$scss .= "p { hyphens: auto; } \n";
 			}
 		} else {
 			if ( $v2_compatible ) {
-				$scss .= "\$para-hyphens: manual; \n"; // TODO
+				$styles->getSass()->setVariables( [
+					'para-hyphens' => 'manual',
+				] );
 			} else {
 				$scss .= "p { hyphens: manual; } \n";
 			}
@@ -1660,10 +1806,21 @@ class PDFOptions extends \Pressbooks\Options {
 		// Indent paragraphs?
 		if ( 'skiplines' === $options['pdf_paragraph_separation'] ) {
 			if ( $v2_compatible ) {
-				$scss .= "\$para-margin-top: 1em; \n";
-				$scss .= "\$para-indent: 0; \n";
+				$styles->getSass()->setVariables( [
+					'para-margin-top' => '1em',
+					'para-indent' => '0',
+				] );
 			} else {
 				$scss .= "p + p { text-indent: 0em; margin-top: 1em; } \n";
+			}
+		} else {
+			if ( $v2_compatible ) {
+				$styles->getSass()->setVariables( [
+					'para-margin-top' => '0',
+					'para-indent' => '1em',
+				] );
+			} else {
+				$scss .= "p + p { text-indent: 1em; margin-top: 0em; } \n";
 			}
 		}
 
@@ -1671,19 +1828,23 @@ class PDFOptions extends \Pressbooks\Options {
 		if ( isset( $options['pdf_sectionopenings'] ) ) {
 			if ( 'openright' === $options['pdf_sectionopenings'] ) {
 				if ( $v2_compatible ) {
-					$scss .= "\$recto-verso-standard-opening: right; \n";
-					$scss .= "\$recto-verso-first-section-opening: right; \n";
-					$scss .= "\$recto-verso-section-opening: right; \n";
+					$styles->getSass()->setVariables( [
+						'recto-verso-standard-opening' => 'right',
+						'recto-verso-first-section-opening' => 'right',
+						'recto-verso-section-opening' => 'right',
+					] );
 				} else {
 					$scss .= "#title-page, #toc, div.part, div.front-matter, div.front-matter.introduction, div.front-matter + div.front-matter, div.chapter, div.chapter + div.chapter, div.back-matter, div.back-matter + div.back-matter, #half-title-page h1.title:first-of-type  { page-break-before: right; } \n";
 					$scss .= "#copyright-page { page-break-before: left; }\n";
 				}
 			} elseif ( 'remove' === $options['pdf_sectionopenings'] ) {
 				if ( $v2_compatible ) {
-					$scss .= "\$recto-verso-standard-opening: auto; \n";
-					$scss .= "\$recto-verso-first-section-opening: auto; \n";
-					$scss .= "\$recto-verso-section-opening: auto; \n";
-					$scss .= "\$recto-verso-copyright-page-opening: auto; \n";
+					$styles->getSass()->setVariables( [
+						'recto-verso-standard-opening' => 'auto',
+						'recto-verso-first-section-opening' => 'auto',
+						'recto-verso-section-opening' => 'auto',
+						'recto-verso-copyright-page-opening' => 'auto',
+					] );
 				} else {
 					$scss .= "#title-page, #copyright-page, #toc, div.part, div.front-matter, div.back-matter, div.chapter, #half-title-page h1.title:first-of-type  { page-break-before: auto; } \n";
 				}
@@ -1693,7 +1854,9 @@ class PDFOptions extends \Pressbooks\Options {
 		// Should we display the TOC? True (default) or false.
 		if ( ! $options['pdf_toc'] ) {
 			if ( $v2_compatible ) {
-				$scss .= "\$toc-display: none; \n";
+				$styles->getSass()->setVariables( [
+					'toc-display' => 'none',
+				] );
 			} else {
 				$scss .= "#toc { display: none; } \n";
 			}
@@ -1702,7 +1865,9 @@ class PDFOptions extends \Pressbooks\Options {
 		// Widows
 		if ( isset( $options['widows'] ) ) {
 			if ( $v2_compatible ) {
-				$scss .= "\$widows: {$options['widows']}; \n";
+				$styles->getSass()->setVariables( [
+					'widows' => $options['widows'],
+				] );
 			} else {
 				$scss .= "p { widows: {$options['widows']}; }\n";
 			}
@@ -1715,7 +1880,9 @@ class PDFOptions extends \Pressbooks\Options {
 		// Orphans
 		if ( isset( $options['orphans'] ) ) {
 			if ( $v2_compatible ) {
-				$scss .= "\$orphans: {$options['orphans']}; \n";
+				$styles->getSass()->setVariables( [
+					'orphans' => $options['orphans'],
+				] );
 			} else {
 				$scss .= "p { orphans: {$options['orphans']}; }\n";
 			}
@@ -1727,26 +1894,28 @@ class PDFOptions extends \Pressbooks\Options {
 
 		// Running Content
 		if ( $v2_compatible ) {
-			$front_matter_running_content_left = ( isset( $options['running_content_front_matter_left'] ) ) ? \Pressbooks\Modules\ThemeOptions\PDFOptions::replaceRunningContentTags( $options['running_content_front_matter_left'] ) : 'string(book-title)';
-			$front_matter_running_content_right = ( isset( $options['running_content_front_matter_right'] ) ) ? \Pressbooks\Modules\ThemeOptions\PDFOptions::replaceRunningContentTags( $options['running_content_front_matter_right'] ) : 'string(section-title)';
-			$introduction_running_content_left = ( isset( $options['running_content_introduction_left'] ) ) ? \Pressbooks\Modules\ThemeOptions\PDFOptions::replaceRunningContentTags( $options['running_content_introduction_left'] ) : 'string(book-title)';
-			$introduction_running_content_right = ( isset( $options['running_content_introduction_right'] ) ) ? \Pressbooks\Modules\ThemeOptions\PDFOptions::replaceRunningContentTags( $options['running_content_introduction_right'] ) : 'string(section-title)';
-			$part_running_content_left = ( isset( $options['running_content_part_left'] ) ) ? \Pressbooks\Modules\ThemeOptions\PDFOptions::replaceRunningContentTags( $options['running_content_part_left'] ) : 'string(book-title)';
-			$part_running_content_right = ( isset( $options['running_content_part_right'] ) ) ? \Pressbooks\Modules\ThemeOptions\PDFOptions::replaceRunningContentTags( $options['running_content_part_right'] ) : 'string(part-title)';
-			$chapter_running_content_left = ( isset( $options['running_content_chapter_left'] ) ) ? \Pressbooks\Modules\ThemeOptions\PDFOptions::replaceRunningContentTags( $options['running_content_chapter_left'] ) : 'string(book-title)';
-			$chapter_running_content_right = ( isset( $options['running_content_chapter_right'] ) ) ? \Pressbooks\Modules\ThemeOptions\PDFOptions::replaceRunningContentTags( $options['running_content_chapter_right'] ) : 'string(section-title)';
-			$back_matter_running_content_left = ( isset( $options['running_content_back_matter_left'] ) ) ? \Pressbooks\Modules\ThemeOptions\PDFOptions::replaceRunningContentTags( $options['running_content_back_matter_left'] ) : 'string(book-title)';
-			$back_matter_running_content_right = ( isset( $options['running_content_back_matter_right'] ) ) ? \Pressbooks\Modules\ThemeOptions\PDFOptions::replaceRunningContentTags( $options['running_content_back_matter_right'] ) : 'string(section-title)';
-			$scss .= "\$front-matter-running-content-left: $front_matter_running_content_left; \n";
-			$scss .= "\$front-matter-running-content-right: $front_matter_running_content_right; \n";
-			$scss .= "\$introduction-running-content-left: $introduction_running_content_left; \n";
-			$scss .= "\$introduction-running-content-right: $introduction_running_content_right; \n";
-			$scss .= "\$part-running-content-left: $part_running_content_left; \n";
-			$scss .= "\$part-running-content-right: $part_running_content_right; \n";
-			$scss .= "\$chapter-running-content-left: $chapter_running_content_left; \n";
-			$scss .= "\$chapter-running-content-right: $chapter_running_content_right; \n";
-			$scss .= "\$back-matter-running-content-left: $back_matter_running_content_left; \n";
-			$scss .= "\$back-matter-running-content-right: $back_matter_running_content_right; \n";
+			$front_matter_running_content_left = ( isset( $options['running_content_front_matter_left'] ) ) ? self::replaceRunningContentTags( $options['running_content_front_matter_left'] ) : 'string(book-title)';
+			$front_matter_running_content_right = ( isset( $options['running_content_front_matter_right'] ) ) ? self::replaceRunningContentTags( $options['running_content_front_matter_right'] ) : 'string(section-title)';
+			$introduction_running_content_left = ( isset( $options['running_content_introduction_left'] ) ) ? self::replaceRunningContentTags( $options['running_content_introduction_left'] ) : 'string(book-title)';
+			$introduction_running_content_right = ( isset( $options['running_content_introduction_right'] ) ) ? self::replaceRunningContentTags( $options['running_content_introduction_right'] ) : 'string(section-title)';
+			$part_running_content_left = ( isset( $options['running_content_part_left'] ) ) ? self::replaceRunningContentTags( $options['running_content_part_left'] ) : 'string(book-title)';
+			$part_running_content_right = ( isset( $options['running_content_part_right'] ) ) ? self::replaceRunningContentTags( $options['running_content_part_right'] ) : 'string(part-title)';
+			$chapter_running_content_left = ( isset( $options['running_content_chapter_left'] ) ) ? self::replaceRunningContentTags( $options['running_content_chapter_left'] ) : 'string(book-title)';
+			$chapter_running_content_right = ( isset( $options['running_content_chapter_right'] ) ) ? self::replaceRunningContentTags( $options['running_content_chapter_right'] ) : 'string(section-title)';
+			$back_matter_running_content_left = ( isset( $options['running_content_back_matter_left'] ) ) ? self::replaceRunningContentTags( $options['running_content_back_matter_left'] ) : 'string(book-title)';
+			$back_matter_running_content_right = ( isset( $options['running_content_back_matter_right'] ) ) ? self::replaceRunningContentTags( $options['running_content_back_matter_right'] ) : 'string(section-title)';
+			$styles->getSass()->setVariables( [
+				'front-matter-running-content-left' => $front_matter_running_content_left,
+				'front-matter-running-content-right' => $front_matter_running_content_right,
+				'introduction-running-content-left' => $introduction_running_content_left,
+				'introduction-running-content-right' => $introduction_running_content_right,
+				'part-running-content-left' => $part_running_content_left,
+				'part-running-content-right' => $part_running_content_right,
+				'chapter-running-content-left' => $chapter_running_content_left,
+				'chapter-running-content-right' => $chapter_running_content_right,
+				'back-matter-running-content-left' => $back_matter_running_content_left,
+				'back-matter-running-content-right' => $back_matter_running_content_right,
+			] );
 		}
 
 		// a11y Font Size

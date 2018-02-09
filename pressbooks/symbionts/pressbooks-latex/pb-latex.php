@@ -27,14 +27,14 @@ class PBLatex {
 	var $methods;
 
 	function init() {
-		$this->options = get_option( 'pb_latex' );
+		$this->options = get_option( 'pb_latex', [ 'method' => 'Automattic_Latex_WPCOM' ] );
 
 		/**
 		 * Append latex render methods to the list of default methods.
 		 *
 		 * @since 3.9.7
 		 *
-		 * @param array The list of default latex renderers.
+		 * @param array $value The list of default latex renderers.
 		 */
 		$this->methods = apply_filters( 'pb_latex_renderers', array(
 			'Automattic_Latex_WPCOM' => 'wpcom',
@@ -43,8 +43,17 @@ class PBLatex {
 		add_action( 'wp_head', array( &$this, 'wpHead' ) );
 
 		add_filter( 'the_content', array( &$this, 'inlineToShortcode' ), 7 ); // Before wptexturize()
-		add_filter( 'the_content', array( &$this, 'doThisShortcode' ), 8 ); // Before wpautop()
-
+		/**
+		 * doThisShortcode has the potential to cause unexpected behavior for some
+		 * latex renderers (e.g. MathJax, Katex).
+		 *
+		 * See https://github.com/pressbooks/pressbooks/issues/958
+		 *
+		 * @since 4.3.4
+		 */
+		if ( ! has_action( 'pb_enqueue_latex_scripts' ) ) {
+			add_filter( 'the_content', array( &$this, 'doThisShortcode' ), 8 ); // Before wpautop()
+		}
 		/**
 		 * Add additional style/script/shortcode dependencies for a given latex renderer.
 		 * Ex:
@@ -55,7 +64,7 @@ class PBLatex {
 		 *
 		 * @since 3.9.7
 		 *
-		 * @param string The method.
+		 * @param string $arg1 The method.
 		 */
 		if ( has_action( 'pb_enqueue_latex_scripts' ) ) {
 			do_action( 'pb_enqueue_latex_scripts', $this->options['method'] );
@@ -82,7 +91,7 @@ class PBLatex {
 		 *
 		 * @since 3.9.7
 		 *
-		 * @param string The method.
+		 * @param string $value The method.
 		 */
 		apply_filters( 'pb_add_latex_config_scripts', $this->options['method'] );
 
@@ -148,7 +157,7 @@ class PBLatex {
 			 *
 			 * @since 3.9.7
 			 *
-			 * @param string The name of the class to be used.
+			 * @param string $method The name of the class to be used.
 			 */
 			apply_filters( 'pb_require_latex', $method );
 		}

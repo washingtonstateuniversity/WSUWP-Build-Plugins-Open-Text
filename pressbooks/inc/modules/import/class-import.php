@@ -16,9 +16,7 @@ abstract class Import {
 	 * @deprecated
 	 * @var array
 	 */
-	static $logsEmail = [
-		'errors@pressbooks.com',
-	];
+	static $logsEmail = [];
 
 
 	/**
@@ -289,6 +287,8 @@ abstract class Import {
 					 * Allows users to add a custom import routine for custom import type.
 					 *
 					 * @since 3.9.6
+					 *
+					 * @param \Pressbooks\Modules\Import\Import $value
 					 */
 					$importer = apply_filters( 'pb_initialize_import', null );
 					if ( is_object( $importer ) ) {
@@ -314,9 +314,11 @@ abstract class Import {
 			/**
 			 * Allows users to append import options to the list of allowed file types.
 			 *
+			 * TODO: Since we set [ test_type = false], this does nothing?
+			 *
 			 * @since 3.9.6
 			 *
-			 * @param array The list of currently allowed file types.
+			 * @param array $value The list of currently allowed file types.
 			 */
 			$allowed_file_types = apply_filters(
 				'pb_import_file_types', [
@@ -331,6 +333,12 @@ abstract class Import {
 
 			if ( ! function_exists( 'wp_handle_upload' ) ) {
 				require_once( ABSPATH . 'wp-admin/includes/file.php' );
+			}
+
+			$bad_extensions = '/\.(php([0-9])?|htaccess|htpasswd|cgi|sh|pl|bat|exe|cmd|dll)$/i';
+			if ( preg_match( $bad_extensions, $_FILES['import_file']['name'] ) ) {
+				$_SESSION['pb_errors'][] = __( 'Sorry, this file type is not permitted for security reasons.' );
+				return false;
 			}
 
 			$upload = wp_handle_upload( $_FILES['import_file'], $overrides );
@@ -428,6 +436,8 @@ abstract class Import {
 					 * via HTTP GET requests
 					 *
 					 * @since 4.0.0
+					 *
+					 * @param \Pressbooks\Modules\Import\Import $value
 					 */
 					$importer = apply_filters( 'pb_initialize_import', null );
 					if ( is_object( $importer ) ) {

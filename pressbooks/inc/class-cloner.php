@@ -12,6 +12,7 @@ use Masterminds\HTML5;
 use Pressbooks\Admin\Network\SharingAndPrivacyOptions;
 use function Pressbooks\Image\attachment_id_from_url;
 use function Pressbooks\Image\default_cover_url;
+use function Pressbooks\Image\strip_baseurl;
 use function Pressbooks\Metadata\schema_to_book_information;
 use function Pressbooks\Metadata\schema_to_section_information;
 use function \Pressbooks\Utility\getset;
@@ -403,7 +404,7 @@ class Cloner {
 		foreach ( $response as $item ) {
 			$fullsize = $item['source_url'];
 			foreach ( $item['media_details']['sizes'] as $size => $info ) {
-				$attached_file = \Pressbooks\Image\strip_baseurl( $info['source_url'] ); // 2017/08/foo-bar-300x225.png
+				$attached_file = strip_baseurl( $info['source_url'] ); // 2017/08/foo-bar-300x225.png
 				$known_images[ $attached_file ] = $fullsize;
 			}
 		}
@@ -644,9 +645,13 @@ class Cloner {
 		// Set status
 		$section['status'] = 'publish';
 
-		// Load HTMl snippet into DOMDocument
+		// Load HTML snippet into DOMDocument
 		$html5 = new HTML5();
-		$dom = $html5->loadHTML( $section['content']['rendered'] );
+		if ( ! empty( $section['content']['raw'] ) ) {
+			$dom = $html5->loadHTML( wpautop( $section['content']['raw'] ) );
+		} else {
+			$dom = $html5->loadHTML( $section['content']['rendered'] );
+		}
 
 		// Download images, change image paths
 		$media = $this->scrapeAndKneadImages( $dom );
@@ -657,8 +662,10 @@ class Cloner {
 
 		unset( $html5, $dom, $media ); // premature optimization, try to free up memory
 
-		// Remove auto-created <html> <body> and <!DOCTYPE> tags.
-		$content = \Pressbooks\Sanitize\strip_container_tags( $content );
+		$content = \Pressbooks\Sanitize\strip_container_tags( $content ); // Remove auto-created <html> <body> and <!DOCTYPE> tags.
+		if ( ! empty( $section['content']['raw'] ) ) {
+			$content = shortcode_unautop( $content ); // Ensures that shortcodes are not wrapped in `<p>...</p>`.
+		}
 
 		// Set title and content
 		$section['title'] = $section['title']['rendered'];
@@ -843,19 +850,7 @@ class Cloner {
 			$attachment_id = $this->fetchAndSaveUniqueImage( $src_old );
 
 			if ( $attachment_id ) {
-				// Replace image
-				$src_new = wp_get_attachment_url( $attachment_id );
-				if ( $this->sameAsSource( $src_old ) && isset( $this->knownImages[ \Pressbooks\Image\strip_baseurl( $src_old ) ] ) ) {
-					$basename_old = $this->basename( $src_old );
-					$basename_new = $this->basename( $src_new );
-					$maybe_src_new = \Pressbooks\Utility\str_lreplace( $basename_new, $basename_old, $src_new );
-					if ( $attachment_id === attachment_id_from_url( $maybe_src_new ) ) {
-						// Our best guess is that this is a cloned image, use old filename to keep resizing
-						$src_new = $maybe_src_new;
-					}
-				}
-				$image->setAttribute( 'src', $src_new );
-				// TODO Handle srcset
+				$image->setAttribute( 'src', $this->replaceImage( $attachment_id, $src_old, $image ) );
 				$attachments[] = $attachment_id;
 			} else {
 				// Tag broken image
@@ -887,7 +882,7 @@ class Cloner {
 		}
 
 		$filename = $this->basename( $url );
-		$attached_file = \Pressbooks\Image\strip_baseurl( $url );
+		$attached_file = strip_baseurl( $url );
 
 		if ( $this->sameAsSource( $url ) && isset( $this->knownImages[ $attached_file ] ) ) {
 			$remote_img_location = $this->knownImages[ $attached_file ];
@@ -946,6 +941,53 @@ class Cloner {
 	}
 
 	/**
+	 * @param int $attachment_id
+	 * @param string $src_old
+	 * @param \DOMElement $image
+	 *
+	 * @return string
+	 */
+	protected function replaceImage( $attachment_id, $src_old, $image ) {
+
+		$src_new = wp_get_attachment_url( $attachment_id );
+
+		if ( $this->sameAsSource( $src_old ) && isset( $this->knownImages[ strip_baseurl( $src_old ) ] ) ) {
+			$basename_old = $this->basename( $src_old );
+			$basename_new = $this->basename( $src_new );
+			$maybe_src_new = \Pressbooks\Utility\str_lreplace( $basename_new, $basename_old, $src_new );
+			if ( $attachment_id === attachment_id_from_url( $maybe_src_new ) ) {
+				// Our best guess is that this is a cloned image, use old filename to preserve WP resizing
+				$src_new = $maybe_src_new;
+				// Update image class to new id to preserve WP Size dropdown
+				if ( $image->hasAttribute( 'class' ) ) {
+					$image->setAttribute( 'class', preg_replace( '/wp-image-\d+/', "wp-image-{$attachment_id}", $image->getAttribute( 'class' ) ) );
+				}
+				// Update wrapper IDs
+				if ( $image->parentNode->tagName === 'div' && strpos( $image->parentNode->getAttribute( 'id' ), 'attachment_' ) !== false ) {
+					// <div> id
+					$image->parentNode->setAttribute( 'id', preg_replace( '/attachment_\d+/', "attachment_{$attachment_id}", $image->parentNode->getAttribute( 'id' ) ) );
+				}
+				foreach ( $image->parentNode->childNodes as $child ) {
+					if ( $child instanceof \DOMText &&
+						strpos( $child->nodeValue, '[caption ' ) !== false &&
+						strpos( $child->nodeValue, 'attachment_' ) !== false
+					) {
+						// [caption] id
+						$child->nodeValue = preg_replace( '/attachment_\d+/', "attachment_{$attachment_id}", $child->nodeValue );
+					}
+				}
+			}
+		}
+
+		// Update srcset URLs
+		if ( $image->hasAttribute( 'srcset' ) ) {
+			$image->setAttribute( 'srcset', wp_get_attachment_image_srcset( $attachment_id ) );
+		}
+
+		return $src_new;
+	}
+
+	/**
 	 * Get sanitized basename without query string or anchors
 	 *
 	 * @param $url
@@ -967,9 +1009,7 @@ class Cloner {
 	 * @return bool
 	 */
 	protected function sameAsSource( $url ) {
-		$same_host = ( parse_url( $this->sourceBookUrl, PHP_URL_HOST ) === parse_url( $url, PHP_URL_HOST ) );
-
-		return $same_host;
+		return \Pressbooks\Utility\urls_have_same_host( $this->sourceBookUrl, $url );
 	}
 
 	/**

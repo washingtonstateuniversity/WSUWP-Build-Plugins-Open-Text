@@ -6,41 +6,29 @@
     "watch": "cross-env NODE_ENV=development webpack --watch --progress --hide-modules --config=node_modules/laravel-mix/setup/webpack.config.js",
     "hot": "cross-env NODE_ENV=development webpack-dev-server --inline --hot --config=node_modules/laravel-mix/setup/webpack.config.js",
     "production": "cross-env NODE_ENV=production webpack --progress --hide-modules --config=node_modules/laravel-mix/setup/webpack.config.js",
-    "lint": "stylelint \"assets/src/styles/**/*.scss\" --syntax scss",
+    "lint": "npm run -s lint:scripts && npm run -s lint:styles",
+    "lint:scripts": "node_modules/eslint/bin/eslint.js \"assets/src/scripts/*.js\"",
+    "lint:styles": "node_modules/stylelint/bin/stylelint.js \"assets/src/styles/**/*.scss\" --syntax scss",
     "localize": "wp-pot -s \"**/*.php\" -o languages/_pressbooks.pot -p \"Pressbooks\" -t \"Pressbooks (Book Oven Inc.) <code@pressbooks.com>\""
   },
   "engines": {
     "node": ">= 6.9.4"
   },
-  "dependencies": {},
-  "devDependencies": {
-    "babel-eslint": "^7.2.3",
+  "dependencies": {
     "block-ui": "^2.70.1",
-    "codemirror": "^5.29.0",
     "countup.js": "^1.8.5",
-    "cross-env": "^5.0.5",
-    "eslint": "^3.19.0",
-    "eslint-config-humanmade": "^0.1.3",
-    "eslint-config-react-app": "^0.5.2",
-    "eslint-loader": "~1.8",
-    "eslint-plugin-flowtype": "^2.34.1",
-    "eslint-plugin-import": "^2.6.1",
-    "eslint-plugin-jsx-a11y": "^2.2.3",
-    "eslint-plugin-react": "^6.10.3",
     "isotope-layout": "^3.0.4",
     "jquery-match-height": "^0.7.2",
     "jquery-sticky": "^1.0.4",
     "js-cookie": "^2.1.4",
-    "laravel-mix": "^1.4.2",
     "select2": "^4.0.3",
     "sidr": "^2.2.1",
-    "stylelint": "^7.12.0",
-    "stylelint-config-standard": "^16.0.0",
-    "stylelint-webpack-plugin": "^0.7.1",
     "tinymce": "^4.6.3",
-    "wp-admin-colors": "^4.8.0",
-    "wp-pot-cli": "^1.0.1",
+    "wp-admin-colors": "^4.9.2",
     "wpapi": "^1.1.2"
+  },
+  "devDependencies": {
+    "pressbooks-build-tools": "^0.5.0"
   },
   "repository": {
     "type": "git",
@@ -74,12 +62,17 @@
       "pb_sr": true,
       "post_status": true,
       "tinymce": true
+    },
+    "rules": {
+      "jsx-a11y/href-no-hash": 0
     }
   },
   "stylelint": {
-    "extends": "stylelint-config-standard",
+    "extends": [
+      "stylelint-config-recommended-scss",
+      "./node_modules/prettier-stylelint/config.js"
+    ],
     "rules": {
-      "indentation": 2,
       "media-feature-name-no-unknown": [
         true,
         {
@@ -87,7 +80,8 @@
             "min--moz-device-pixel-ratio"
           ]
         }
-      ]
+      ],
+      "media-query-list-comma-space-after": "always-single-line"
     }
   }
 }

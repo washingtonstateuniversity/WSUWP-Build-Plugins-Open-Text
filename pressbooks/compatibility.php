@@ -28,7 +28,7 @@ function pb_meets_minimum_requirements() {
 
 	// PHP Version
 	global $pb_minimum_php;
-	$pb_minimum_php = '5.6.0';
+	$pb_minimum_php = '7.0.0';
 
 	if ( ! version_compare( PHP_VERSION, $pb_minimum_php, '>=' ) ) {
 		add_action( 'admin_notices', '_pb_minimum_php' );
@@ -37,7 +37,7 @@ function pb_meets_minimum_requirements() {
 
 	// WordPress Version
 	global $pb_minimum_wp;
-	$pb_minimum_wp = '4.8.1';
+	$pb_minimum_wp = '4.9.2';
 
 	$wp_version = get_bloginfo( 'version' );
 	if ( substr_count( $wp_version, '.' ) === 1 ) {
@@ -59,7 +59,22 @@ function pb_meets_minimum_requirements() {
 		}
 	}
 
+	if ( $is_compatible ) {
+		pb_init_autoloader();
+	}
+
 	return $is_compatible;
+}
+
+/**
+ * Plugins are loaded in random order. Other plugins that depend on pressbooks (before pressbooks is loaded) should init the autoloader.
+ */
+function pb_init_autoloader() {
+	static $registered = false;
+	if ( ! $registered ) {
+		\HM\Autoloader\register_class_path( 'Pressbooks', __DIR__ . '/inc' );
+		$registered = true;
+	}
 }
 
 /**

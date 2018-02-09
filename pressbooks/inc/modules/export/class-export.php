@@ -31,9 +31,7 @@ abstract class Export {
 	 *
 	 * @var array
 	 */
-	public $errorsEmail = [
-		'errors@pressbooks.com',
-	];
+	public $errorsEmail = [];
 
 
 	/**
@@ -307,6 +305,8 @@ abstract class Export {
 	/**
 	 * Fix annoying characters that the user probably didn't do on purpose
 	 *
+	 * @deprecated
+	 *
 	 * @param string $html
 	 *
 	 * @return string
@@ -539,10 +539,6 @@ abstract class Export {
 			return;
 		}
 
-		// Set locale to UTF8 so escapeshellcmd() doesn't strip valid characters.
-		setlocale( LC_CTYPE, 'UTF8', 'en_US.UTF-8' );
-		putenv( 'LC_CTYPE=en_US.UTF-8' );
-
 		// Override some WP behaviours when exporting
 		\Pressbooks\Sanitize\fix_audio_shortcode();
 
@@ -605,8 +601,10 @@ abstract class Export {
 				$modules[] = '\Pressbooks\Modules\Export\Odt\Odt';
 			}
 
+			// --------------------------------------------------------------------------------------------------------
+			// Other People's Plugins
+
 			/**
-			 * @since 3.9.8
 			 * Catch enabled custom formats and add their classes to the $modules array.
 			 *
 			 * For example, here's how one might catch a hypothetical Word exporter:
@@ -618,8 +616,18 @@ abstract class Export {
 			 *    return $modules;
 			 * } );
 			 *
+			 * @since 3.9.8
+			 *
+			 * @param array $modules
 			 */
 			$modules = apply_filters( 'pb_active_export_modules', $modules );
+
+			/**
+			 * Let other plugins tweak things before exporting
+			 *
+			 * @since 4.4.0
+			 */
+			do_action( 'pb_pre_export' );
 
 			// --------------------------------------------------------------------------------------------------------
 			// Clear cache? Range is 1 hour.
@@ -658,7 +666,11 @@ abstract class Export {
 
 				$outputs[ $module ] = $exporter->getOutputPath();
 
-				// Stats hook
+				/**
+				 * Stats hook
+				 *
+				 * @param string
+				 */
 				do_action( 'pressbooks_track_export', substr( strrchr( $module, '\\' ), 1 ) );
 			}
 
@@ -749,15 +761,12 @@ abstract class Export {
 			$book_lang = $codes[ $book_lang ];
 
 			foreach ( $compare_with as $compare ) {
-
 				$compare = str_replace( 'pressbooks-', '', $compare );
-
 				if ( strpos( $book_lang, $compare ) === 0 ) {
 					$loc = $compare;
 					break;
 				}
 			}
-
 			if ( '__UNSET__' === $loc ) {
 				$loc = 'en_US'; // No match found, default to english
 			}
