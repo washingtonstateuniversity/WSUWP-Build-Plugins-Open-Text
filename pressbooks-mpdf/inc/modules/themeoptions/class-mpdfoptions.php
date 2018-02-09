@@ -3,12 +3,11 @@
  * @author  Pressbooks <code@pressbooks.com>
  * @license GPLv2 (or any later version)
  */
-namespace Pressbooks\Modules\ThemeOptions;
+namespace BCcampus\Modules\ThemeOptions;
 
-use Pressbooks\Container;
-use Pressbooks\CustomCss;
+use Pressbooks;
 
-class MPDFOptions extends \Pressbooks\Options {
+class MPDFOptions extends Pressbooks\Options {
 
 	/**
 	 * The value for option: pressbooks_theme_options_mpdf_version
@@ -189,38 +188,38 @@ class MPDFOptions extends \Pressbooks\Options {
 			]
 		);
 
-		add_settings_field(
-			'mpdf_indent_paragraphs',
-			__( 'Indent paragraphs', 'pressbooks' ),
-			[ $this, 'renderIndentParagraphsField' ],
-			$_page,
-			$_section,
-			[
-				 __( 'Indent paragraphs', 'pressbooks' )
-			]
-		);
-
-		add_settings_field(
-			'mpdf_hyphens',
-			__( 'Hyphens', 'pressbooks' ),
-			[ $this, 'renderHyphensField' ],
-			$_page,
-			$_section,
-			[
-				 __( 'Enable hyphenation', 'pressbooks' )
-			]
-		);
-
-		add_settings_field(
-			'mpdf_fontsize',
-			__( 'Increase Font Size', 'pressbooks' ),
-			[ $this, 'renderFontSizeField' ],
-			$_page,
-			$_section,
-			[
-				__( 'Increases font size and line height for greater accessibility', 'pressbooks' )
-			]
-		);
+//		add_settings_field(
+//			'mpdf_indent_paragraphs',
+//			__( 'Indent paragraphs', 'pressbooks' ),
+//			[ $this, 'renderIndentParagraphsField' ],
+//			$_page,
+//			$_section,
+//			[
+//				 __( 'Indent paragraphs', 'pressbooks' )
+//			]
+//		);
+//
+//		add_settings_field(
+//			'mpdf_hyphens',
+//			__( 'Hyphens', 'pressbooks' ),
+//			[ $this, 'renderHyphensField' ],
+//			$_page,
+//			$_section,
+//			[
+//				 __( 'Enable hyphenation', 'pressbooks' )
+//			]
+//		);
+//
+//		add_settings_field(
+//			'mpdf_fontsize',
+//			__( 'Increase Font Size', 'pressbooks' ),
+//			[ $this, 'renderFontSizeField' ],
+//			$_page,
+//			$_section,
+//			[
+//				__( 'Increases font size and line height for greater accessibility', 'pressbooks' )
+//			]
+//		);
 
 		/**
 		 * Add custom settings fields.
@@ -513,49 +512,4 @@ class MPDFOptions extends \Pressbooks\Options {
 		] );
 	}
 
-	/**
-	 * Add format-specific theme options to the theme options page.
-	 *
-	 * @since 2.0.0
-	 * @author Book Oven Inc. <code@pressbooks.com>
-	 *
-	 * @param array $tabs an array of theme options tabs ('slug' => '\Classname')
-	 * @return array $tabs
-	 */
-	static function addTab( $tabs ) {
-		$tabs['mpdf'] = '\Pressbooks\Modules\ThemeOptions\MPDFOptions';
-		return $tabs;
-	}
-
-	/**
-	 * Apply overrides.
-	 *
-	 * @since 2.0.0
-	 * @author Book Oven Inc. <code@pressbooks.com>
-	 *
-	 * @param string $scss
-	 * @return string
-	 */
-	static function scssOverrides( $scss ) {
-		$options = get_option( 'pressbooks_theme_options_mpdf' );
-		$global_options = get_option( 'pressbooks_theme_options_global' );
-
-		// indent paragraphs
-		if ( $options['mpdf_indent_paragraphs'] ) {
-			$scss .= 'p + p, .indent {text-indent: 2.0 em; }' . "\n";
-		}
-		// hyphenation
-		if ( $options['mpdf_hyphens'] ) {
-			$scss .= 'p {hyphens: auto;}' . "\n";
-		}
-		// font-size
-		if ( $options['mpdf_fontsize'] ) {
-					$scss .= 'body {font-size: 1.3em; line-height: 1.3; }' . "\n";
-		}
-		// chapter numbers
-		if ( ! $global_options['chapter_numbers'] ) {
-			$scss .= 'h3.chapter-number {display: none;}' . "\n";
-		}
-		return $scss;
-	}
 }

@@ -5,9 +5,7 @@
  * @license GPLv2 (or any later version))
  */
 
-namespace Pressbooks\Modules\Export\Mpdf;
-
-use mPDF;
+namespace BCcampus\Modules\Export\Mpdf;
 
 /**
  * Available filters
@@ -34,10 +32,14 @@ use mPDF;
  *     add_filter( 'mpdf_get_header', 'my_mpdf_header', 10, 1 );
  *
  */
+use Mpdf\Mpdf;
+use Mpdf\MpdfException;
+use Masterminds\HTML5;
+use Pressbooks\Book;
+use Pressbooks\Sanitize;
+use Pressbooks\Modules\Export\Prince;
 
-use Pressbooks\Modules\Export\Export;
-
-class Pdf extends Export {
+class Pdf extends Prince\Pdf {
 
 	/**
 	 * Fullpath to book CSS file.
@@ -89,18 +91,10 @@ class Pdf extends Export {
 	protected $bookMeta;
 
 	/**
-	 * Number the chapters
-	 *
-	 * @var boolean
+	 * endpoint for xhtml page
+	 * @var string
 	 */
-	protected $numbered = false;
-
-	/**
-	 * Parses the html as styles and stylesheets only
-	 * @see http://mpdf1.com/manual/index.php?tid=121
-	 *
-	 */
-	const MODE_CSS = 1;
+	public $url;
 
 	/**
 	 *
@@ -121,12 +115,20 @@ class Pdf extends Export {
 			ini_set( 'memory_limit', $this->memoryNeeded . 'M' );
 		}
 
-		$this->options = get_option( 'pressbooks_theme_options_mpdf' );
-		$this->globalOptions = get_option( 'pressbooks_theme_options_global' );
-		$this->bookTitle = get_bloginfo( 'name' );
-		$this->exportStylePath = $this->getExportStylePath( 'mpdf' );
-		$this->bookMeta = \Pressbooks\Book::getBookInformation();
-		$this->numbered = ( 1 === absint( $this->globalOptions['chapter_numbers'] ) ) ? true : false;
+		$this->options         = get_option( 'pressbooks_theme_options_mpdf' );
+		$this->globalOptions   = get_option( 'pressbooks_theme_options_global' );
+		$this->bookTitle       = get_bloginfo( 'name' );
+		$this->exportStylePath = $this->getExportStylePath( 'prince' );
+		$this->bookMeta        = Book::getBookInformation();
+
+		// Set the access protected "format/xhtml" URL with a valid timestamp and NONCE
+		// verbatim from prince/class-pdf.php in pressbooks v4.5.0
+		$timestamp = time();
+		$md5       = $this->nonce( $timestamp );
+		$this->url = home_url() . "/format/xhtml?timestamp={$timestamp}&hashkey={$md5}";
+		if ( ! empty( $_REQUEST['preview'] ) ) {
+			$this->url .= '&' . http_build_query( [ 'preview' => $_REQUEST['preview'] ] );
+		}
 	}
 
 	/**
@@ -136,363 +138,307 @@ class Pdf extends Export {
 	 */
 	function convert() {
 
-		$filename = $this->timestampedFileName( '._oss.pdf' );
-		$this->outputPath = $filename;
-		$contents = $this->getOrderedBookContents();
+		$filename                = $this->timestampedFileName( '._oss.pdf' );
+		$this->outputPath        = $filename;
+		$contents                = file_get_contents( $this->url );
+		$doc                     = ( class_exists( HTML5::class ) ) ? new HTML5() : new \DOMDocument();
+		$doc->preserveWhiteSpace = false;
+		$dom                     = $doc->loadHTML( $contents );
 
-		// set up mPDF
-		$this->mpdf = new mPDF( '' );
-		$this->mpdf->SetAnchor2Bookmark( 1 );
-		$this->mpdf->ignore_invalid_utf8 = true;
-		if ( 1 === absint( $this->options['mpdf_mirror_margins'] ) ) {
-			$this->mpdf->mirrorMargins = true;
+		$config = $this->setConfigVariables();
+
+		try {
+			$this->mpdf = new Mpdf( $config );
+			$this->setDocumentMeta();
+
+			// @see https://mpdf.github.io/reference/mpdf-functions/overview.html
+			$this->mpdf->SetBasePath( home_url( '/' ) );
+			$this->mpdf->SetCompression( true );
+
+			// iterate over the xhtml domdocument
+			$this->iterator( $dom );
+
+			/****************************************
+			 * alternate route NOTES:
+			 * dumping the whole xhtml document in and using prince css
+			 * works but MPDF TOC and Bookmarks don't build
+			 * works but no page numbering
+			 * works but is more memory intensive for mpdf (error msg below)
+			 * * The HTML code size is larger than pcre.backtrack_limit 1000000.
+			 * * You should use WriteHTML() with smaller string lengths
+			 * works but mpdf headers and footer functionality is lost
+			 *****************************************/
+			//$this->mpdf->WriteHTML( $contents );
+
+			// make the thing
+			$this->mpdf->Output( $this->outputPath, 'F' );
+
+		} catch ( MpdfException $e ) {
+			error_log( $e->getMessage() );
 		}
-		$this->mpdf->setBasePath( home_url( '/' ) );
 
-		$this->setCss();
-
-		// all precontent page_options are suppressed and omitted from the TOC
-		$this->addPreContent( $contents );
-
-		// all front matter page numbers are romanized
-		$this->addFrontMatter( $contents );
-		// all parts, chapters, back-matter
-		$this->addPartsandChapters( $contents );
-
-		$this->mpdf->Output( $this->outputPath, 'F' );
-
-		// TODO trap errors
 		return true;
+	}
+
+	/**
+	 * Give Mpdf all the things
+	 * @see https://github.com/mpdf/mpdf/blob/development/src/Config/ConfigVariables.php
+	 *
+	 */
+	private function setConfigVariables() {
+		// CSS File
+		$css      = $this->kneadCss();
+		$css      = $this->filterCss( $css );
+		$css_file = $this->createTmpFile();
+		file_put_contents( $css_file, $css );
+
+		$map_pb_to_mpdf = [
+			'mpdf_page_size'      => 'format',
+			'mpdf_margin_left'    => 'margin_left',
+			'mpdf_margin_right'   => 'margin_right',
+			'mpdf_mirror_margins' => 'mirrorMargins',
+
+		];
+
+		// cherry picked
+		$config = [
+			'mode'                 => 's',
+			'format'               => 'Letter',
+			'default_font_size'    => 0,
+			'default_font'         => '',
+			'margin_left'          => 15,
+			'margin_right'         => 15,
+			'margin_top'           => 16,
+			'margin_bottom'        => 16,
+			'margin_header'        => 9,
+			'margin_footer'        => 9,
+			'orientation'          => 'P',
+			'enableImports'        => false,
+			'anchor2Bookmark'      => 1,
+			'mirrorMargins'        => 1,
+			'tempDir'              => _MPDF_TEMP_PATH,
+			'defaultCssFile'       => $css_file,
+			'autoLangToFont'       => true,
+			'ignore_invalid_utf8'  => true,
+			'defaultfooterline'    => 0,
+			'defaultheaderline'    => 0,
+			'defaultheaderfontstyle' => 'I',
+			'defaultfooterfontstyle' => 'I',
+			'shrink_tables_to_fit' => 1,
+			'use_kwt'              => true,
+		//          'debug'                => true,
+		];
+
+		// user config overrides defaults
+		foreach ( $map_pb_to_mpdf as $k => $v ) {
+			if ( isset( $this->options[ $k ] ) ) {
+				$config[ $v ] = $this->options[ $k ];
+			}
+		}
+
+		return $config;
+
+	}
+
+	/**
+	 * Sets Available PDF Document Metadata
+	 * @see https://mpdf.github.io/setting-pdf-file-properties/document-metadata.html
+	 *
+	 */
+	protected function setDocumentMeta() {
+		( isset( $this->bookMeta['pb_title'] ) ) ? $this->mpdf->SetTitle( $this->bookMeta['pb_title'] ) : '';
+		( isset( $this->bookMeta['pb_author'] ) ) ? $this->mpdf->SetAuthor( $this->bookMeta['pb_author'] ) : '';
+		( isset( $this->bookMeta['pb_publisher'] ) ) ? $this->mpdf->SetCreator( $this->bookMeta['pb_publisher'] ) : '';
+		( isset( $this->bookMeta['pb_primary_subject'] ) ) ? $this->mpdf->SetSubject( $this->bookMeta['pb_primary_subject'] ) : '';
+		( isset( $this->bookMeta['pb_keywords_tags'] ) ) ? $this->mpdf->SetKeywords( $this->bookMeta['pb_keywords_tags'] ) : '';
+
 	}
 
 	/**
 	 * Add the mpdf Table of Contents.
 	 * Note, the functionality of the TOC is limited: its behavior varies
-	 * according mirrored margin settings, and will always generate blank pages
-	 * after.
+	 * according mirrored margin settings, and will always start on an odd page and
+	 * is likely to generate unwanted blank pages after.
 	 * http://mpdf1.com/forum/discussion/comment/6417#Comment_6417
 	 *
 	 */
 	function addToc() {
 
 		$options = [
-			'paging' => true,
-			'links' => true,
-			'toc-bookmarkText' => 'toc',
-			'toc-preHTML' => '<h1 class="toc">Contents</h1>',
-			'toc-margin-left' => 15,
-			'toc-margin-right' => 15,
+			'paging'           => true,
+			'links'            => true,
+			'tocindent'        => 1,
+			'suppress'         => 'on',
+			'toc_bookmarkText' => 'Contents',
+			'toc_preHTML'      => '<h1 class="toc">Contents</h1>',
 		];
+
 		$this->mpdf->TOCpagebreakByArray( $options );
 	}
 
-	/**
-	 * Add all specially handled content.
-	 *
-	 * @param array $contents - the book
-	 */
-	function addPreContent( $contents ) {
-		// Before Title Page (user generated)
-		$this->addFrontMatterByType( 'before-title', $contents );
-		// Cover
-		if ( 1 === absint( $this->options['mpdf_include_cover'] ) ) {
-			$this->addCover();
-		}
-		// Title (user generated)
-		$this->addFrontMatterByType( 'title-page', $contents );
-		// Title page
-		$this->addBookInfo();
-		// Copyright
-		$this->addCopyright();
-		// Dedication and Epigraph (In that order!)
-		$this->addFrontMatterByType( 'dedication', $contents );
-		$this->addFrontMatterByType( 'epigraph', $contents );
-		// Table of Contents
-		if ( 1 === absint( $this->options['mpdf_include_toc'] ) ) {
-			$this->addToc();
-		}
-	}
 
 	/**
 	 * Add the cover for the book.
 	 */
 	function addCover() {
 		$page_options = [
-			'suppress' => 'on',
-			'margin-left' => 15,
+			'suppress'     => 'on',
+			'margin-left'  => 15,
 			'margin-right' => 15,
 		];
-		$content = '<div id="half-title-page">';
-		$content .= '<h1 class="title">' . $this->bookTitle . '</h1>';
-		$content .= '</div>' . "\n";
+		$content      = '<div id="half-title-page">';
+		$content      .= '<h1 class="title">' . $this->bookTitle . '</h1>';
+		$content      .= '</div>' . "\n";
 
 		if ( ! empty( $this->bookMeta['pb_cover_image'] ) ) {
 			$content .= '<div style="text-align:center;"><img src="' . $this->bookMeta['pb_cover_image'] . '" alt="book-cover" title="' . bloginfo( 'name' ) . ' book cover" /></div>';
 		}
 
-		$page = [
-			'post_type' => 'cover',
-			'post_content' => $content,
-			'post_title' => '',
-			'mpdf_level' => 1,
-			'mpdf_omit_toc' => true,
-		];
-
-		$this->addPage( $page, $page_options, false, false );
+		$this->mpdf->AddPageByArray( $page_options );
+		$this->mpdf->WriteHTML( $content );
 	}
+
 
 	/**
-	 * Add book information page, otherwise known as title page
-	 *
+	 * @param \DOMDocument $dom
 	 */
-	function addBookInfo() {
-		$page_options = [
-			'suppress' => 'on',
-			'margin-left' => 15,
-			'margin-right' => 15,
-		];
+	protected function iterator( \DOMDocument $dom ) {
+		// assumes xhtml output has all pages in the first level children of body node
+		// ex: body->div
+		$pages = $dom->getElementsByTagName( 'body' )->item( 0 )->childNodes;
 
-		$content = '<div id="title-page">';
-		$content .= '<h1 class="title">' . $this->bookTitle . '</h1>';
-
-		if ( ! empty( $this->bookMeta['pb_subtitle'] ) ) {
-			$content .= '<h2 class="subtitle">' . $this->bookMeta['pb_subtitle'] . '</h2>';
+		// first thing's first, gotta have a purty pikcher
+		if ( 1 === $this->options['mpdf_include_cover'] ) {
+			$this->addCover();
 		}
 
-		if ( isset( $this->bookMeta['pb_author'] ) ) {
-			$content .= '<h3 class="author">' . $this->bookMeta['pb_author'] . '</h3>';
-		}
+		foreach ( $pages as $page ) {
+			// avoid text nodes
+			if ( XML_ELEMENT_NODE === $page->nodeType ) {
 
-		if ( isset( $this->bookMeta['pb_contributing_authors'] ) ) {
-			$content .= '<h4 class="contributing-authors">' . $this->bookMeta['pb_contributing_authors'] . '</h4>';
-		}
+				/****************************************
+				 * Logic
+				 *****************************************/
+				$context_class = substr( $page->getAttribute( 'class' ), 0, 4 );
+				$context_id    = substr( $page->getAttribute( 'id' ), 0, 3 );
 
-		if ( isset( $this->bookMeta['pb_print_isbn'] ) ) {
-			$content .= '<p class="isbn"><strong>' . __( 'ISBN', 'pressbooks' ) . '</strong>: ' . $this->bookMeta['pb_print_isbn'] . '</p>';
-		}
+				// Mpdf has its own table of contents mechanism
+				if ( 0 === strcmp( $context_id, 'toc' ) ) {
+					if ( 1 === $this->options['mpdf_include_toc'] ) {
+						$this->addToc();
+					}
+					// prevent further processing
+					continue;
+				}
 
-		if ( isset( $this->bookMeta['pb_publisher'] ) ) {
-			$content .= '<p class="publisher">' . $this->bookMeta['pb_publisher'] . '</p>';
-		}
+				switch ( $context_class ) {
 
-		if ( isset( $this->bookMeta['pb_publisher_city'] ) ) {
-			$content .= '<p class="publisher-city">' . $this->bookMeta['pb_publisher_city'] . '</p>';
-		}
+					case 'fron':
+						$display_header = false;
+						$display_footer = true;
+						$page_options   = [ 'suppress' => 'off', 'pagenumstyle' => 'i' ];
+						$toc_level      = 0;
+						$element        = 'h1';
+						$class          = 'front-matter-title';
+						$title          = $this->getNodeValue( $page, $element, $class );
+						$add_to_toc     = true;
+						break;
 
-		$content .= '</div>';
+					case 'chap':
+						$display_header = true;
+						$display_footer = true;
+						$page_options   = [ 'suppress' => 'off', 'pagenumstyle' => '1' ];
+						$toc_level      = 1;
+						$element        = 'h2';
+						$class          = 'chapter-title';
+						$title          = $this->getNodeValue( $page, $element, $class );
+						$add_to_toc     = true;
+						break;
 
-		$page = [
-			'post_title' => '',
-			'post_content' => $content,
-			'post_type' => 'bookinfo',
-			'mpdf_level' => 1,
-			'mpdf_omit_toc' => true,
-		];
+					case 'part':
+						$display_header = false;
+						$display_footer = true;
+						$page_options   = [ 'suppress' => 'on', 'pagenumstyle' => '1' ];
+						$toc_level      = 0;
+						$element        = 'h1';
+						$class          = 'part-title';
+						$title          = $this->getNodeValue( $page, $element, $class );
+						$add_to_toc     = true;
+						break;
 
-		$this->addPage( $page, $page_options, false, false );
-	}
+					case 'back':
+						$display_header = false;
+						$display_footer = true;
+						$page_options   = [ 'suppress' => 'off', 'pagenumstyle' => '1' ];
+						$toc_level      = 0;
+						$element        = 'h1';
+						$class          = 'back-matter-title';
+						$title          = $this->getNodeValue( $page, $element, $class );
+						$add_to_toc     = true;
+						break;
 
-	/**
-	 * Copyright information on a separate page
-	 *
-	 */
-	function addCopyright() {
-		$options = $this->globalOptions;
-		$page_options = [
-			'suppress' => 'on',
-			'margin-left' => 15,
-			'margin-right' => 15,
-		];
+					default:
+						$display_header = false;
+						$display_footer = false;
+						$page_options   = [
+							'suppress'     => 'on',
+							'margin_left'  => 15,
+							'margin_right' => 15,
+						];
+						$toc_level      = 0;
+						$element        = '';
+						$class          = '';
+						$title          = '';
+						$add_to_toc     = false;
 
-		$content = '<div id="copyright-page">';
+				}
 
-		if ( isset( $this->bookMeta['pb_copyright_year'] ) || isset( $this->bookMeta['pb_copyright_holder'] ) ) {
+				/****************************************
+				 * Add Page to Document Array
+				 *****************************************/
+				$this->mpdf->AddPageByArray( $page_options );
 
-			$content .= '<p><strong>' . __( 'Copyright', 'pressbooks' ) . '</strong>:';
-			if ( ! empty( $this->bookMeta['pb_copyright_year'] ) ) {
-				$content .= $this->bookMeta['pb_copyright_year'] . ' ';
-			}
+				/****************************************
+				 * Table of Contents
+				 *****************************************/
+				if ( $add_to_toc && 1 === $this->options['mpdf_include_toc'] ) {
+					$this->mpdf->TOC_Entry( $this->getTocEntry( $title ), $toc_level );
+					$this->mpdf->Bookmark( $this->getBookmarkEntry( $title ), $toc_level );
+				}
 
-			if ( ! empty( $this->bookMeta['pb_copyright_holder'] ) ) {
-				$content .= ' ' . __( 'by', 'pressbooks' ) . ' ' . $this->bookMeta['pb_copyright_holder'] . '. ';
-			}
-			$content .= '</p>';
+				/****************************************
+				 * Headers and Footers
+				 *****************************************/
+				$footer = ( $display_footer ) ? $this->getFooter( $display_footer ) : '';
+				$header = ( $display_header ) ? $this->getHeader( $display_header ) : '';
 
-			if ( ! empty( $this->bookMeta['pb_custom_copyright'] ) ) {
-				$content .= '<p class="custom-copyright">' . $this->bookMeta['pb_custom_copyright'] . '</p>';
-			}
-		}
+				$this->mpdf->SetFooter( $footer );
+				$this->mpdf->SetHeader( $header );
 
-		if ( 1 === absint( $options['copyright_license'] ) ) {
-			$content .= '<p class="copyright-license">';
-			$content .= $this->doCopyrightLicense( $this->bookMeta );
-			$content .= '</p>';
-		}
-
-		$content .= '</div>';
-
-		$page = [
-			'post_title' => '',
-			'post_content' => $content,
-			'post_type' => 'bookinfo',
-			'mpdf_level' => 1,
-			'mpdf_omit_toc' => true,
-		];
-
-		$this->addPage( $page, $page_options, false, false );
-	}
-
-	/**
-	 * Add front matter of a specific/special type
-	 *
-	 * @param string $type - special content placed ahead of everything else
-	 * @param array $contents - book contents
-	 */
-	function addFrontMatterByType( $type, $contents ) {
-		$page_options = [
-			'suppress' => 'on',
-		];
-
-		foreach ( $contents as $index => $page ) {
-			// If we hit non front-matter post types we won't see anymore front-matter
-			if ( 'front-matter' !== $page['post_type'] ) {
-				return;
-			}
-
-			if ( \Pressbooks\Taxonomy::getFrontMatterType( $page['ID'] ) === $type ) {
-				$page['mpdf_omit_toc'] = true;
-				$this->addPage( $page, $page_options, false, false );
-			}
-		}
-	}
-
-	/**
-	 * Adds front matter, resets the page numbering on the first loop,
-	 * romanizes the numeric style
-	 *
-	 * @param array $contents
-	 */
-	function addFrontMatter( array $contents ) {
-
-		$first_iteration = true;
-		$page_options = [
-			'pagenumstyle' => 'i',
-			'margin-left' => 15,
-			'margin-right' => 15,
-		];
-
-		foreach ( $contents as $front_matter ) {
-			// safety
-			$type = \Pressbooks\Taxonomy::getFrontMatterType( $front_matter['ID'] );
-			if ( 'dedication' === $type || 'epigraph' === $type || 'title-page' === $type || 'before-title' === $type ) {
-					continue; // Skip
-			}
-
-			// only reset the page number on first iteration
-			$page_options['resetpagenum'] = ( true === (bool) $first_iteration ) ? 1 : 0;
-
-			// assumes the array of book contents is in order
-			if ( 'front-matter' !== $front_matter['post_type'] ) {
-				return;
-			}
-			if ( ! empty( $front_matter['post_content'] ) ) {
-				$this->addPage( $front_matter, $page_options, true, true );
-				$first_iteration = false;
+				/****************************************
+				 * Do the thing
+				 *****************************************/
+				$html = $dom->saveHTML( $page );
+				$this->mpdf->WriteHTML( $html );
 			}
 		}
-	}
 
-	function addPartsAndChapters( $contents ) {
-		// change the numbering system to numeric
-		// iterate through, parts, chapters, back-matter
-		$first_iteration = true;
-		$i = 1;
-		$page_options = [];
-		foreach ( $contents as $page ) {
-
-			if ( 'front-matter' === $page['post_type'] ) { continue; //skip all front-matter
-			}
-
-			if ( true === (bool) $first_iteration ) {
-				$page_options['pagenumstyle'] = 1;
-			}
-			$page['chapter_num'] = $i;
-			$this->addPage( $page, $page_options );
-			$first_iteration = false;
-			if ( 'part' !== $page['post_type'] ) {
-				$i++;
-			}
-		}
-	}
-
-	/**
-	 * Add a page to the pdf
-	 *
-	 * @param array $page - the content
-	 * @param array $page_options - numbering reset, style, suppress adding to TOC
-	 * @param boolean $display_footer turn on/off footer display
-	 * @param boolean $display_header turn on/off header display
-	 * @return boolean
-	 */
-	function addPage( $page, $page_options = [], $display_footer = true, $display_header = true ) {
-		// defaults
-		$defaults = [
-			'suppress' => 'off',
-			'resetpagenum' => 0,
-			'pagenumstyle' => 1,
-			'margin-right' => $this->options['mpdf_right_margin'],
-			'margin-left' => $this->options['mpdf_left_margin'],
-			'sheet-size' => $this->options['mpdf_page_size'],
-		];
-
-		$options = \wp_parse_args( $page_options, $defaults );
-		$class = ( $this->numbered ) ? '<div class="' . $page['post_type'] . '">' : '<div class="' . $page['post_type'] . ' numberless">';
-		$toc_entry = ( 'chapter' === $page['post_type']  && true === $this->numbered ) ? $page['chapter_num'] . ' ' . $page['post_title'] : $page['post_title'];
-
-		if ( ! empty( $page['post_content'] ) || 'part' === $page['post_type'] ) {
-
-			$this->mpdf->SetFooter( $this->getFooter( $display_footer, $this->bookTitle . '| | {PAGENO}' ) );
-			$this->mpdf->SetHeader( $this->getHeader( $display_header, '' ) );
-
-			$this->mpdf->AddPageByArray( $options );
-
-			if ( empty( $page['mpdf_omit_toc'] ) ) {
-				$this->mpdf->TOC_Entry( $this->getTocEntry( $toc_entry ), $page['mpdf_level'] );
-				$this->mpdf->Bookmark( $this->getBookmarkEntry( $page ), $page['mpdf_level'] );
-			}
-
-			if ( 'chapter' === $page['post_type'] ) {
-				$title = '<h3 class="chapter-number">' . $page['chapter_num'] . '</h3><h2 class="entry-title">' . $page['post_title'] . '</h2>';
-			} else {
-				$title = '<h2 class="entry-title">' . $page['post_title'] . '</h2>';
-			}
-
-			$content = $class
-				. $title
-				. $this->getFilteredContent( $page['post_content'] )
-				. '</div>'
-				. apply_filters( 'pb_append_chapter_content', '', $page['ID'] );
-
-			// TODO Make this hookable.
-			$this->mpdf->WriteHTML( $content );
-			return true;
-		}
-
-		return false;
 	}
 
 	/**
 	 * Return the Table of Contents entry for this page.
 	 *
-	 * @param string $page
+	 * @param $title
+	 *
 	 * @return string
 	 */
-	function getTocEntry( $page ) {
+	function getTocEntry( $title ) {
 
 		// allow override
-		$entry = apply_filters( 'mpdf_get_toc_entry', $page );
+		$entry = apply_filters( 'mpdf_get_toc_entry', $title );
+
 		// sanitize
-		$entry = \Pressbooks\Sanitize\filter_title( $entry );
+		$entry = Sanitize\filter_title( $entry );
 
 		return $entry;
 	}
@@ -502,73 +448,43 @@ class Pdf extends Export {
 	 * should be unique, using static variable for cheap cache
 	 *
 	 * @staticvar int $id - to avoid collisions with identical page titles
-	 * @param array $page
+	 *
+	 * @param $title
+	 *
 	 * @return string
 	 */
-	function getBookmarkEntry( $page ) {
+	function getBookmarkEntry( $title ) {
 		static $id = 1;
-		$entry = $id . ' ' . $page['post_title'];
-		$id++;
+		$entry = $id . ' ' . $title;
+		$id ++;
 
 		return $entry;
 	}
 
-	/**
-	 * Cleans up html
-	 *
-	 * @param string $content
-	 * @return string
-	 */
-	function getFilteredContent( $content ) {
-
-		$filtered = apply_filters( 'the_content', $content );
-
-		$filtered = $this->fixAnnoyingCharacters( $filtered );
-
-		$config = [
-			'valid_xhtml' => 1,
-			'no_deprecated_attr' => 2,
-			'unique_ids' => 'fixme-',
-			'hook' => '\Pressbooks\Sanitize\html5_to_xhtml11',
-			'tidy' => -1,
-		];
-
-		return \Pressbooks\HtmLawed::filter( $filtered, $config );
-	}
-
-	/**
-	 * This function prevents mPDF from completely aborting the export routine, or replacing each non-breaking space with a '?'
-	 * if ignore_invalid_utf8 is true. Important to leave this in.
-	 *
-	 * @param string $html
-	 * @return string
-	 */
-	function fixAnnoyingCharacters( $html ) {
-		// Replace Non-breaking spaces with normal spaces
-		$html = preg_replace( '/\xC2\xA0/', ' ', $html );
-
-		return $html;
-	}
 
 	/**
 	 * Return formatted footers.
 	 *
 	 * @param bool $display
 	 * @param string $content
-	 *   The post type being added to the page.
 	 *
 	 * @return string
 	 */
-	function getFooter( $display = true, $content = '' ) {
+	function getFooter( bool $display, $content = '' ) {
+
 		// bail early
-		if ( false === (bool) $display ) {
+		if ( false === $display ) {
 			return '';
 		}
 
+		// default content if none provided
+		$content = ( empty( $content ) ) ? ' | {PAGENO} | ' : $content;
+
 		// override
 		$footer = apply_filters( 'mpdf_get_footer', $content );
+
 		// sanitize
-		$footer = \Pressbooks\Sanitize\filter_title( $footer );
+		$footer = Sanitize\filter_title( $footer );
 
 		return $footer;
 	}
@@ -578,193 +494,48 @@ class Pdf extends Export {
 	 *
 	 * @param bool $display
 	 * @param string $content
-	 *  The post type being added to the page
 	 *
 	 * @return string
 	 */
-	function getHeader( $display = true, $content = '' ) {
+	function getHeader( bool $display, $content = '' ) {
+
 		// bail early
-		if ( false === (bool) $display ) {
+		if ( false === $display ) {
 			return '';
 		}
 
+		$content = ( empty( $content ) ) ? ' | | ' . $this->bookTitle . '' : $content;
+
 		// override
 		$header = apply_filters( 'mpdf_get_header', $content );
+
 		//sanitize
-		$header = \Pressbooks\Sanitize\filter_title( $header );
+		$header = Sanitize\filter_title( $header );
 
 		return $header;
 	}
 
 	/**
-	 * Restructures \Pressbooks\Book::getBookContents() into a format more useful
-	 * for direct iteration, and tracks a nesting level for Bookmark and ToC
-	 * entries.
+	 * get the value of a node
 	 *
-	 * @return array
-	 */
-	function getOrderedBookContents() {
-
-		$book_contents = \Pressbooks\Book::getBookContents();
-
-		$ordered = [];
-
-		foreach ( $book_contents as $type => $struct ) {
-			if ( strpos( $type, '__' ) === 0 ) {
-				continue; // Skip __magic keys
-			}
-
-			switch ( $type ) {
-				case 'part':
-					foreach ( $struct as $part ) {
-						$part_content = trim( get_post_meta( $part['ID'], 'pb_part_content', true ) );
-						if ( $part_content || $this->atLeastOneExport( $part['chapters'] ) ) {
-							if ( ! empty( $part['post_content'] ) ) {
-								$part['mpdf_level'] = 1;
-								$part['post_content'] .= $part_content;
-							} else {
-								$part['post_content'] = $part_content;
-								$part['mpdf_level'] = 0;
-							}
-							$ordered[] = $part;
-
-							foreach ( $part['chapters'] as $chapter ) {
-								if ( ! $chapter['export'] ) {
-									continue;
-								}
-
-								$chapter['mpdf_level'] = $part['mpdf_level'] + 1;
-								$ordered[] = $chapter;
-
-								if ( \Pressbooks\Modules\Export\Export::isParsingSubsections() === true ) {
-									$sections = \Pressbooks\Book::getSubsections( $chapter['ID'] );
-									if ( $sections ) {
-										foreach ( $sections as $section ) {
-											$section['mpdf_level'] = $part['mpdf_level'] + 2;
-											$ordered[] = $section;
-										}
-									}
-								}
-							}
-						}
-					}
-					break;
-				default:
-					foreach ( $struct as $item ) {
-						if ( ! $item['export'] ) {
-							continue;
-						}
-
-						$item['mpdf_level'] = 1;
-						$ordered[] = $item;
-
-						if ( \Pressbooks\Modules\Export\Export::isParsingSubsections() === true ) {
-							$sections = \Pressbooks\Book::getSubsections( $item['ID'] );
-							if ( $sections ) {
-								foreach ( $sections as $section ) {
-									$section['mpdf_level'] = 2;
-									$ordered[] = $section;
-								}
-							}
-						}
-					}
-					break;
-			}
-		}
-
-		return $ordered;
-	}
-
-	/**
-	 * Get current child and parent theme css files. Child themes only have one parent
-	 * theme, and 99% of the time this is 'Luther' or /pressbooks-book/ whose stylesheet is
-	 * named 'style.css'
+	 * @param \DOMElement $content
+	 * @param $element
+	 * @param $class
 	 *
-	 * @param object $theme
-	 * @return string $css
+	 * @return string
 	 */
-	function getThemeCss( $theme ) {
+	private function getNodeValue( \DOMElement $content, $element, $class ) {
+		$title = '';
 
-		$css = '';
+		if ( ! empty( $content ) ) {
+			$headings = $content->getElementsByTagName( $element );
 
-		// get parent theme files
-		if ( is_object( $theme->parent() ) ) {
-			$parent_files = $theme->parent()->get_files( 'css' );
-
-			// exclude admin files
-			$parents = $this->stripUnwantedStyles( $parent_files );
-
-			// hopefully there is something left for us to grab
-			if ( ! empty( $parents ) ) {
-				foreach ( $parents as $parent ) {
-					$css .= file_get_contents( $parent ) . "\n";
-				}
-			}
-		}
-		// get child theme files
-		$child_files = $theme->get_files( 'css' );
-		// exclude admin files
-		$children = $this->stripUnwantedStyles( $child_files );
-
-		if ( ! empty( $children ) ) {
-			foreach ( $children as $child ) {
-				$css .= file_get_contents( $child ) . "\n";
+			foreach ( $headings as $heading ) {
+				$title = ( $class === $heading->getAttribute( 'class' ) ) ? $heading->nodeValue : '';
 			}
 		}
 
-		return $css;
-	}
-
-	/**
-	 * Helper function to omit unwanted stylesheets in the output
-	 *
-	 * @param array $styles
-	 * @return array $sytles
-	 */
-	private function stripUnwantedStyles( array $styles ) {
-
-		$unwanted = [
-			'editor-style.css',
-		];
-
-		foreach ( $unwanted as $key ) {
-			if ( array_key_exists( $key, $styles ) ) {
-				unset( $styles[ $key ] );
-			}
-		}
-		return $styles;
-	}
-
-	/**
-	 * Add all css files
-	 */
-	function setCss() {
-		$css = '';
-
-		// check for child theme export file
-		$cssfile = $this->getExportStylePath( 'mpdf' );
-
-		// if empty, try the parent theme export directory
-		if ( empty( $cssfile ) ) {
-			$cssfile = realpath( get_template_directory() . '/export/mpdf/style.css' );
-		}
-
-		if ( is_string( $cssfile ) && ! empty( $cssfile ) ) {
-			$css .= file_get_contents( $cssfile ) . "\n";
-		}
-
-		// grab the web theme, ONLY as a backup
-		if ( empty( $css ) ) {
-			$theme = wp_get_theme();
-			$css = $this->getThemeCss( $theme );
-		}
-
-		// Theme options override
-		$css .= apply_filters( 'pb_mpdf_css_override', $css ) . "\n";
-
-		if ( ! empty( $css ) ) {
-			$this->mpdf->WriteHTML( $css, self::MODE_CSS );
-		}
+		return $title;
 	}
 
 	/**
@@ -799,6 +570,7 @@ class Pdf extends Export {
 	 * Does array of chapters have at least one export? Recursive.
 	 *
 	 * @param array $chapters
+	 *
 	 * @return bool
 	 */
 	protected function atLeastOneExport( array $chapters ) {
@@ -816,43 +588,33 @@ class Pdf extends Export {
 		return false;
 	}
 
+	private function filterCss( $css ) {
+		$filtered = '';
 
-	/**
-	 * Dependency check.
-	 *
-	 * @return bool
-	 */
-	static function hasDependencies() {
-		return true;
-	}
+		// primary purpose is to deal with how mpdf class handles @page
+		if ( ! empty( $css ) ) {
+			// page breaks in mpdf are created with 'AddPage()'
+			$filtered = preg_replace( '/page-break-(before|after|inside)\:(\s?)(right|auto|left|always|inherit);/i', 'page-break-$1: avoid;', $css );
 
-	/**
-	 * Add to export formats.
-	 *
-	 * @since 2.0.0
-	 * @author Book Oven Inc. <code@pressbooks.com>
-	 *
-	 * @param array $formats a multidimensional array of standard and exotic formats
-	 * @return array $formats
-	 */
-	static function addToFormats( $formats ) {
-		$formats['standard'] = [ 'mpdf' => __( 'PDF (mPDF)', 'pressbooks-mpdf' ) ] + $formats['standard'];
-		return $formats;
-	}
+			// mpdf has its own class for toc
+			$filtered = preg_replace( '/#toc\s?/iU', '.mpdf_toc ', $filtered );
 
-	/**
-	 * Add to export modules.
-	 *
-	 * @since 2.0.0
-	 * @author Book Oven Inc. <code@pressbooks.com>
-	 *
-	 * @param array $modules an array of active export module classnames
-	 * @return array $modules
-	 */
-	static function addToModules( $modules ) {
-		if ( isset( $_POST['export_formats']['mpdf'] ) ) { // @codingStandardsIgnoreLine
-			$modules[] = '\Pressbooks\Modules\Export\Mpdf\Pdf';
+			// reference to page selectors force unwanted page breaks
+			$filtered = preg_replace( '/page\:\s?(.*);/iU', '', $filtered );
+
+			// page breaks created with every change in @page selector
+			$filtered = preg_replace( '/@page\s?(.*)\s{/iU', 'body {', $filtered );
+
+			// Mpdf has limited @page support
+			$filtered = preg_replace( '/(?:@(top*|bottom*|right*|left*|footnotes)\s?(.*)\s?{(.*)})/isU', '', $filtered );
+
 		}
-		return $modules;
+
+		$mpdf_css = 'div.mpdf_toc_level_0{line-height:1.5;margin-left:0;padding-right:0}div.mpdf_toc_level_1{margin-left:2em;text-indent:-2em;padding-right:0}div.mpdf_toc_level_2{margin-left:4em;text-indent:-2em;padding-right:0}';
+
+		return $mpdf_css . $filtered;
+
 	}
+
+
 }
