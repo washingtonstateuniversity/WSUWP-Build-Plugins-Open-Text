@@ -3,7 +3,7 @@
  * Control access to plugins.
  *
  * @author  Pressbooks <code@pressbooks.com>
- * @license GPLv2 (or any later version)
+ * @license GPLv3 (or any later version)
  */
 
 namespace Pressbooks\Admin\Plugins;
@@ -21,6 +21,7 @@ namespace Pressbooks\Admin\Plugins;
 function filter_plugins( $plugins ) {
 	if ( ! is_super_admin() ) {
 		$slugs = [
+			'h5p',
 			'hypothesis',
 		];
 		$approved = [];

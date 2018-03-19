@@ -1,7 +1,7 @@
 <?php
 /**
  * @author  Book Oven Inc. <code@pressbooks.com>
- * @license GPLv2+
+ * @license GPLv3+
  */
 
 namespace Pressbooks\Modules\SearchAndReplace;
@@ -55,10 +55,11 @@ abstract class Search {
 		$error_handler = function( $errno, $errstr, $errfile, $errline ) use ( &$regex_error ) {
 			$regex_error = preg_replace( '/(.*?):/', '', $errstr, 1 );
 		};
+		// @codingStandardsIgnoreStart
 		set_error_handler( $error_handler );
-		// @codingStandardsIgnoreLine
 		$valid = @preg_match( $expr, null, $matches );
 		restore_error_handler();
+		// @codingStandardsIgnoreEnd
 		if ( false === $valid ) {
 			return $regex_error;
 		}

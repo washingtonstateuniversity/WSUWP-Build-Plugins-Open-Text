@@ -1,7 +1,7 @@
 <?php
 /**
  * @author  Pressbooks <code@pressbooks.com>
- * @license GPLv2 (or any later version)
+ * @license GPLv3 (or any later version)
  */
 
 namespace Pressbooks;
@@ -295,6 +295,7 @@ abstract class Options {
 			'choices' => [],
 			'multiple' => false,
 			'disabled' => false,
+			'description' => null,
 		];
 
 		$args = wp_parse_args( $args, $defaults );
@@ -317,6 +318,12 @@ abstract class Options {
 			( ! empty( $args['disabled'] ) ) ? ' disabled' : '',
 			$options
 		);
+		if ( isset( $args['description'] ) ) {
+			printf(
+				'<p class="description">%s</p>',
+				$args['description']
+			);
+		}
 	}
 
 	/**

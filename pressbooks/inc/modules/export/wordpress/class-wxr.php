@@ -1,7 +1,7 @@
 <?php
 /**
  * @author  Pressbooks <code@pressbooks.com>
- * @license GPLv2 (or any later version)
+ * @license GPLv3 (or any later version)
  */
 
 namespace Pressbooks\Modules\Export\WordPress;
@@ -36,7 +36,7 @@ class Wxr extends Export {
 		// Save WXR as file in exports folder
 
 		$filename = $this->timestampedFileName( '.xml' );
-		file_put_contents( $filename, $output );
+		\Pressbooks\Utility\put_contents( $filename, $output );
 		$this->outputPath = $filename;
 
 		return true;

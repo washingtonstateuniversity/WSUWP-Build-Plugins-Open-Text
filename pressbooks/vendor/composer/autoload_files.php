@@ -8,7 +8,7 @@ $baseDir = dirname($vendorDir);
 return array(
     '5255c38a0faeba867671b61dfda6d864' => $vendorDir . '/paragonie/random_compat/lib/random.php',
     '72579e7bd17821bb1321b87411366eae' => $vendorDir . '/illuminate/support/helpers.php',
-    '52aedd6bde5708f06004dbaa477f23bd' => $vendorDir . '/perchten/rmrdir/src/rmrdir.php',
+    'a2c48002d05f7782d8b603bd2bcb5252' => $vendorDir . '/johnbillion/extended-cpts/extended-cpts.php',
     '0ac03ff008dc2941bc6326a91306855f' => $vendorDir . '/pressbooks/pb-api/pb-api.php',
     '0b51b81077dc89114af454712eb5fce0' => $vendorDir . '/pressbooks/pb-cli/command.php',
     '89ff252b349d4d088742a09c25f5dd74' => $vendorDir . '/yahnis-elsts/plugin-update-checker/plugin-update-checker.php',

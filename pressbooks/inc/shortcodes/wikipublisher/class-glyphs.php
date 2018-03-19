@@ -7,7 +7,7 @@
  * @see      http://www.wikipublisher.org/wiki/Pressbooks/GreekAndHebrew
  *
  * @author   Pressbooks <code@pressbooks.com>
- * @license  GPLv2 (or any later version)
+ * @license  GPLv3 (or any later version)
  */
 
 namespace Pressbooks\Shortcodes\Wikipublisher;
@@ -37,10 +37,12 @@ class Glyphs {
 		if ( ! self::$instance ) {
 			$self = new self;
 			add_shortcode( 'pb_language', [ $self, 'langShortcode' ] );
-			add_filter( 'no_texturize_shortcodes', function ( $excluded_shortcodes ) {
-				$excluded_shortcodes[] = 'pb_language';
-				return $excluded_shortcodes;
-			} );
+			add_filter(
+				'no_texturize_shortcodes', function ( $excluded_shortcodes ) {
+					$excluded_shortcodes[] = 'pb_language';
+					return $excluded_shortcodes;
+				}
+			);
 			self::$instance = $self;
 		}
 		return self::$instance;
@@ -74,7 +76,7 @@ class Glyphs {
 			return $_error;
 		}
 
-		// Reverse Wordpress' fancy formatting
+		// Reverse WordPress' fancy formatting
 		// We want to keep all characters such as ‘ ` " '' [...] < > should be &gt; &lt; Ie. not numeric
 		$content = str_replace( [ '&#8216;', '&#8217;', '&lsquo;', '&rsquo;' ], "'", $content ); // Change back to '
 		$content = str_replace( [ '&#8220;', '&#8221;', '&ldquo;', '&rdquo;' ], '"', $content ); // Change back to "

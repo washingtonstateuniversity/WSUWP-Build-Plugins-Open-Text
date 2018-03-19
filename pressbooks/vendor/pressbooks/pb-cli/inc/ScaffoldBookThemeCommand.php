@@ -6,6 +6,7 @@ use WP_CLI;
 use WP_CLI\Process;
 use WP_CLI\Utils;
 
+
 class ScaffoldBookThemeCommand {
 
 	/**
@@ -24,6 +25,9 @@ class ScaffoldBookThemeCommand {
 	 * <slug>
 	 * : Slug for the new theme.
 	 *
+	 * <vendor>
+	 * : Vendor for the new theme. Used in composer.json and package.json.
+	 *
 	 * [--theme_name=<title>]
 	 * : What to put in the 'Theme Name:' header in 'style.css'. Defaults to <slug>.
 	 *
@@ -38,6 +42,12 @@ class ScaffoldBookThemeCommand {
 	 *
 	 * [--author_uri=<author_uri>]
 	 * : What to put in the 'Author URI:' header in 'style.css'.
+	 *
+	 * [--github_account=<github_account>]
+	 * : The GitHub account that owns this project (e.g. 'pressbooks'). Defaults to vendor.
+	 *
+	 * [--github_repo=<github_repo>]
+	 * : The GitHub repo name for this project (e.g. 'pressbooks-book'). Defaults to slug.
 	 *
 	 * [--license=<license>]
 	 * : What to put in the 'License:' header in 'style.css'.
@@ -70,17 +80,22 @@ class ScaffoldBookThemeCommand {
 	 */
 	public function scaffold_book_theme( $args, $assoc_args ) {
 		$theme_slug = $args[0];
+		$theme_vendor = $args[1];
 		$assoc_args = array_merge( [
 			'description' => '',
-			'uri' 				=> '',
-			'author'    	=> '',
+			'uri' => '',
+			'author' => '',
 			'author_uri'  => '',
-			'license'			=> 'GPL-2.0+',
-			'version'			=> '1.0',
-			'dir'         => '',
+			'license' => 'GPL-2.0+',
+			'spdx_license' => 'gpl-2.0-or-later',
+			'version' => '1.0',
+			'dir' => '',
+			'github_account' => '',
+			'github_repo' => '',
 		], $assoc_args );
 
 		$assoc_args['slug'] = $theme_slug;
+		$assoc_args['vendor'] = $theme_vendor;
 		$assoc_args['theme_function_safe'] = str_replace( '-', '_', $assoc_args['slug'] );
 
 		if ( empty( $assoc_args['theme_name'] ) ) {
@@ -89,6 +104,14 @@ class ScaffoldBookThemeCommand {
 
 		if ( empty( $assoc_args['textdomain'] ) ) {
 			$assoc_args['textdomain'] = $theme_slug;
+		}
+
+		if ( empty( $assoc_args['github_account'] ) ) {
+			$assoc_args['github_account'] = $theme_vendor;
+		}
+
+		if ( empty( $assoc_args['github_repo'] ) ) {
+			$assoc_args['github_repo'] = $theme_slug;
 		}
 
 		if ( ! empty( $assoc_args['dir'] ) ) {

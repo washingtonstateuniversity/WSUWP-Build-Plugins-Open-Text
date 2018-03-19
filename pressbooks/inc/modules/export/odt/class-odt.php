@@ -1,7 +1,7 @@
 <?php
 /**
  * @author  Pressbooks <code@pressbooks.com>
- * @license GPLv2 (or any later version))
+ * @license GPLv3 (or any later version))
  */
 
 namespace Pressbooks\Modules\Export\Odt;
@@ -43,6 +43,13 @@ class Odt extends Export {
 	 */
 	public $compressImages = false;
 
+	/**
+	 * Temporary directory used to build ODT, no trailing slash!
+	 *
+	 * @var string
+	 */
+	protected $tmpDir;
+
 
 	/**
 	 * @param array $args
@@ -64,9 +71,20 @@ class Odt extends Export {
 		$md5 = $this->nonce( $timestamp );
 		$this->url = home_url() . "/format/xhtml?timestamp={$timestamp}&hashkey={$md5}";
 		if ( ! empty( $_REQUEST['preview'] ) ) {
-			$this->url .= '&' . http_build_query( [ 'preview' => $_REQUEST['preview'] ] );
+			$this->url .= '&' . http_build_query(
+				[
+					'preview' => $_REQUEST['preview'],
+				]
+			);
 		}
 
+	}
+
+	/**
+	 * Delete temporary directories when done.
+	 */
+	function __destruct() {
+		$this->deleteTmpDir();
 	}
 
 	/**
@@ -77,39 +95,31 @@ class Odt extends Export {
 	function convert() {
 
 		// Set logfile
-
 		$this->logfile = $this->createTmpFile();
 
 		// Set filename
+		$this->outputPath = $this->timestampedFileName( '.odt' );
 
-		$filename = $this->timestampedFileName( '.odt' );
-		$this->outputPath = $filename;
+		// Set temp folder
+		$this->tmpDir = $this->createTmpDir();
 
-		// Save ODT as file in exports folder
-
-		$content_path = pathinfo( $filename );
-		$source = $content_path['dirname'] . '/source.xhtml';
-
+		$source = $this->tmpDir . '/source.xhtml';
 		if ( defined( 'WP_TESTS_MULTISITE' ) ) {
-			file_put_contents( $source, file_get_contents( $this->url ) );
+			\Pressbooks\Utility\put_contents( $source, \Pressbooks\Utility\get_contents( $this->url ) );
 		} else {
-			file_put_contents( $source, $this->queryXhtml() );
+			\Pressbooks\Utility\put_contents( $source, $this->queryXhtml() );
 		}
 
 		$xslt = PB_PLUGIN_DIR . 'inc/modules/export/odt/xhtml2odt.xsl';
-		$content = $content_path['dirname'] . '/content.xml';
-		$mimetype = $content_path['dirname'] . '/mimetype';
-		$metafolder = $content_path['dirname'] . '/META-INF';
-		$meta = $content_path['dirname'] . '/meta.xml';
-		$settings = $content_path['dirname'] . '/settings.xml';
-		$styles = $content_path['dirname'] . '/styles.xml';
-		$mediafolder = $content_path['dirname'] . '/media/';
+		$content = $this->tmpDir . '/content.xml';
+		$mimetype = $this->tmpDir . '/mimetype';
+		$metafolder = $this->tmpDir . '/META-INF';
+		$meta = $this->tmpDir . '/meta.xml';
+		$settings = $this->tmpDir . '/settings.xml';
+		$styles = $this->tmpDir . '/styles.xml';
+		$mediafolder = $this->tmpDir . '/media/';
 
-		if ( is_dir( $mediafolder ) ) {
-			$this->deleteDirectory( $mediafolder );
-		}
-
-		$urlcontent = file_get_contents( $source );
+		$urlcontent = \Pressbooks\Utility\get_contents( $source );
 		$urlcontent = preg_replace( '/xmlns\="http\:\/\/www\.w3\.org\/1999\/xhtml"/i', '', $urlcontent );
 
 		if ( empty( $urlcontent ) ) {
@@ -173,7 +183,7 @@ class Odt extends Export {
 			}
 		}
 
-		file_put_contents( $source, $doc->saveXML() );
+		\Pressbooks\Utility\put_contents( $source, $doc->saveXML() );
 
 		$errors = libxml_get_errors(); // TODO: Handle errors gracefully
 		libxml_clear_errors();
@@ -182,10 +192,6 @@ class Odt extends Export {
 			$result = exec( PB_SAXON_COMMAND . ' -xsl:' . $xslt . ' -s:' . $source . ' -o:' . $content );
 		} catch ( \Exception $e ) {
 			$this->logError( $e->getMessage() );
-			unlink( $source );
-			if ( is_dir( $mediafolder ) ) {
-				$this->deleteDirectory( $mediafolder );
-			}
 			return false;
 		}
 
@@ -206,50 +212,23 @@ class Odt extends Export {
 
 		if ( ! empty( $msg ) ) {
 			$this->logError( 'Transformation failed, encountered a problem with' . $msg );
-			unlink( $source );
-			if ( is_dir( $mediafolder ) ) {
-				$this->deleteDirectory( $mediafolder );
-			}
 			return false;
 		}
 
-		$zip = new \PclZip( $filename );
+		$zip = new \PclZip( $this->outputPath );
 
 		if ( $images->length > 0 ) {
-			$list = $zip->add( $mimetype . ',' . $content . ',' . $meta . ',' . $settings . ',' . $styles . ',' . $mediafolder . ',' . $metafolder, PCLZIP_OPT_NO_COMPRESSION, PCLZIP_OPT_REMOVE_PATH, $content_path['dirname'] . '/' );
+			$list = $zip->add( $mimetype . ',' . $content . ',' . $meta . ',' . $settings . ',' . $styles . ',' . $mediafolder . ',' . $metafolder, PCLZIP_OPT_NO_COMPRESSION, PCLZIP_OPT_REMOVE_PATH, $this->tmpDir . '/' );
 		} else {
-			$list = $zip->add( $mimetype . ',' . $content . ',' . $meta . ',' . $settings . ',' . $styles . ',' . $metafolder, PCLZIP_OPT_NO_COMPRESSION, PCLZIP_OPT_REMOVE_PATH, $content_path['dirname'] . '/' );
+			$list = $zip->add( $mimetype . ',' . $content . ',' . $meta . ',' . $settings . ',' . $styles . ',' . $metafolder, PCLZIP_OPT_NO_COMPRESSION, PCLZIP_OPT_REMOVE_PATH, $this->tmpDir . '/' );
 		}
 
 		if ( 0 === absint( $list ) ) {
 			$this->logError( $zip->errorInfo( true ) );
-			unlink( $source );
-			if ( is_dir( $mediafolder ) ) {
-				$this->deleteDirectory( $mediafolder );
-			}
 			return false;
 		}
 
-		unlink( $source );
-		unlink( $mimetype );
-		unlink( $content );
-		unlink( $meta );
-		unlink( $settings );
-		unlink( $styles );
-		unlink( $metafolder . '/manifest.xml' );
-		rmdir( $metafolder );
-
-		if ( is_dir( $mediafolder ) ) {
-			$this->deleteDirectory( $mediafolder );
-		}
-
 		return true;
-	}
-
-	/* Recursive Directory Deletion for media folder */
-
-	public static function deleteDirectory( $dirpath ) {
-		rmrdir( $dirpath );
 	}
 
 	/**
@@ -259,7 +238,9 @@ class Odt extends Export {
 	 */
 	protected function queryXhtml() {
 
-		$args = [ 'timeout' => $this->timeout ];
+		$args = [
+			'timeout' => $this->timeout,
+		];
 		if ( defined( 'WP_ENV' ) && WP_ENV === 'development' ) {
 			$args['sslverify'] = false;
 		}
@@ -292,7 +273,7 @@ class Odt extends Export {
 		// Is this an ODT?
 		if ( ! $this->isOdt( $this->outputPath ) ) {
 
-			$this->logError( file_get_contents( $this->logfile ) );
+			$this->logError( \Pressbooks\Utility\get_contents( $this->logfile ) );
 
 			return false;
 		}
@@ -348,7 +329,11 @@ class Odt extends Export {
 			return $already_done[ $url ];
 		}
 
-		$response = wp_remote_get( $url, [ 'timeout' => $this->timeout ] );
+		$response = wp_remote_get(
+			$url, [
+				'timeout' => $this->timeout,
+			]
+		);
 
 		// WordPress error?
 		if ( is_wp_error( $response ) ) {
@@ -361,7 +346,7 @@ class Odt extends Export {
 		$filename = explode( '?', basename( $url ) );
 
 		// isolate latex image service from WP, add file extension
-		$host = parse_url( $url, PHP_URL_HOST );
+		$host = wp_parse_url( $url, PHP_URL_HOST );
 		if ( ( str_ends_with( $host, 'wordpress.com' ) || str_ends_with( $host, 'wp.com' ) ) && 'latex.php' === $filename[0] ) {
 			$filename = md5( array_pop( $filename ) );
 			// content-type = 'image/png'
@@ -376,7 +361,7 @@ class Odt extends Export {
 		}
 
 		$tmp_file = \Pressbooks\Utility\create_tmp_file();
-		file_put_contents( $tmp_file, wp_remote_retrieve_body( $response ) );
+		\Pressbooks\Utility\put_contents( $tmp_file, wp_remote_retrieve_body( $response ) );
 
 		if ( ! \Pressbooks\Image\is_valid_image( $tmp_file, $filename ) ) {
 			$already_done[ $url ] = '';
@@ -392,13 +377,29 @@ class Odt extends Export {
 		// Check for duplicates, save accordingly
 		if ( ! file_exists( "$fullpath/$filename" ) ) {
 			copy( $tmp_file, "$fullpath/$filename" );
-		} elseif ( md5( file_get_contents( $tmp_file ) ) !== md5( file_get_contents( "$fullpath/$filename" ) ) ) {
+		} elseif ( md5( \Pressbooks\Utility\get_contents( $tmp_file ) ) !== md5( \Pressbooks\Utility\get_contents( "$fullpath/$filename" ) ) ) {
 			$filename = wp_unique_filename( $fullpath, $filename );
 			copy( $tmp_file, "$fullpath/$filename" );
 		}
 
 		$already_done[ $url ] = $filename;
 		return $filename;
+	}
+
+	/**
+	 * Delete temporary directories
+	 */
+	protected function deleteTmpDir() {
+		// Cleanup temporary directory, if any
+		if ( ! empty( $this->tmpDir ) ) {
+			\Pressbooks\Utility\rmrdir( $this->tmpDir );
+		}
+		// Cleanup deprecated junk, if any
+		$exports_folder = untrailingslashit( pathinfo( $this->outputPath, PATHINFO_DIRNAME ) );
+		if ( ! empty( $exports_folder ) ) {
+			\Pressbooks\Utility\rmrdir( "{$exports_folder}/META-INF" );
+			\Pressbooks\Utility\rmrdir( "{$exports_folder}/media" );
+		}
 	}
 
 	/**

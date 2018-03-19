@@ -9,7 +9,7 @@
 [![Packagist](https://img.shields.io/packagist/dt/pressbooks/pressbooks.svg)](https://packagist.org/packages/pressbooks/pressbooks)
 
 [Pressbooks](http://pressbooks.org) is a book content management system which
-exports in multiple formats: ebooks, webbooks, print-ready [PDF][], and various
+exports in multiple formats: ebooks, webbooks, print-ready [PDF][pdf], and various
 XML flavours. [Pressbooks](http://pressbooks.org) is built on top of
 [WordPress Multisite](http://codex.wordpress.org/Glossary#Multisite), and makes
 significant changes to:
@@ -21,12 +21,12 @@ significant changes to:
 * export routines.
 
 Pressbooks is free software, released under the
-[GPL 2.0+](https://www.gnu.org/licenses/gpl-2.0.txt) license.
+[GPL v3.0 or later](https://github.com/pressbooks/pressbooks/blob/master/LICENSE.md) license.
 
-Our web/ebook and [PDF][] exports are all driven by HTML + CSS. XML outputs have
+Our web/ebook and [PDF][pdf] exports are all driven by HTML + CSS. XML outputs have
 no styling.
 
-[pdf]: https://pressbooks.com/prince "Note: we use the non-free software PrinceXML for PDF export."
+[pdf]: http://pressbooks.com/prince "Note: we use the non-free software PrinceXML for PDF export."
 
 ## Important!
 
@@ -34,12 +34,12 @@ no styling.
 * Please use with a **_FRESH_** install of
   [WP **_MULTISITE_**](http://codex.wordpress.org/Glossary#Multisite).
 * If this makes you nervous, please use our free site:
-  [Pressbooks](https://pressbooks.com), or contact us.
+  [Pressbooks](http://pressbooks.com), or contact us.
 
 ## Try pressbooks.com
 
 While Pressbooks is open source, we recommend you try
-[Pressbooks.com](https://pressbooks.com) before deciding whether or not you wish
+[Pressbooks.com](http://pressbooks.com) before deciding whether or not you wish
 to host and maintain your own instance. We can also host and maintain an
 instance for you.
 
@@ -55,7 +55,7 @@ you need to install Pressbooks for development, please see the
 
 ## Requirements
 
-Pressbooks works with PHP 7.0 and WordPress 4.9.2. Lower versions are not
+Pressbooks works with PHP 7.0 and WordPress 4.9.4. Lower versions are not
 supported.
 
 ## Disclaimers
@@ -65,4 +65,4 @@ The Pressbooks plugin is supplied "as is" and all use is at your own risk.
 ## More Details
 
 Visit our [documentation website](https://docs.pressbooks.org) for
-[installation instructions](https://docs.pressbooks.org/installation), etc.
+[installation instructions](https://docs.pressbooks.org/installation) etc.

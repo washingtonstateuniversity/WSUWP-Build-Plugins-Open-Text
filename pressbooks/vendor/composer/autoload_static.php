@@ -4,12 +4,12 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd
+class ComposerStaticInit8fb71e5b9c7e13a36e68db0c5eedbffe
 {
     public static $files = array (
         '5255c38a0faeba867671b61dfda6d864' => __DIR__ . '/..' . '/paragonie/random_compat/lib/random.php',
         '72579e7bd17821bb1321b87411366eae' => __DIR__ . '/..' . '/illuminate/support/helpers.php',
-        '52aedd6bde5708f06004dbaa477f23bd' => __DIR__ . '/..' . '/perchten/rmrdir/src/rmrdir.php',
+        'a2c48002d05f7782d8b603bd2bcb5252' => __DIR__ . '/..' . '/johnbillion/extended-cpts/extended-cpts.php',
         '0ac03ff008dc2941bc6326a91306855f' => __DIR__ . '/..' . '/pressbooks/pb-api/pb-api.php',
         '0b51b81077dc89114af454712eb5fce0' => __DIR__ . '/..' . '/pressbooks/pb-cli/command.php',
         '89ff252b349d4d088742a09c25f5dd74' => __DIR__ . '/..' . '/yahnis-elsts/plugin-update-checker/plugin-update-checker.php',
@@ -51,7 +51,6 @@ class ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd
         ),
         'D' => 
         array (
-            'Doctrine\\Instantiator\\' => 22,
             'Doctrine\\Common\\Inflector\\' => 26,
         ),
         'C' => 
@@ -120,10 +119,6 @@ class ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd
         'Illuminate\\Container\\' => 
         array (
             0 => __DIR__ . '/..' . '/illuminate/container',
-        ),
-        'Doctrine\\Instantiator\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/doctrine/instantiator/src/Doctrine/Instantiator',
         ),
         'Doctrine\\Common\\Inflector\\' => 
         array (
@@ -196,11 +191,13 @@ class ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd
         'Composer\\Installers\\MODULEWorkInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/MODULEWorkInstaller.php',
         'Composer\\Installers\\MODXEvoInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/MODXEvoInstaller.php',
         'Composer\\Installers\\MagentoInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/MagentoInstaller.php',
+        'Composer\\Installers\\MajimaInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/MajimaInstaller.php',
         'Composer\\Installers\\MakoInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/MakoInstaller.php',
         'Composer\\Installers\\MauticInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/MauticInstaller.php',
         'Composer\\Installers\\MayaInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/MayaInstaller.php',
         'Composer\\Installers\\MediaWikiInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/MediaWikiInstaller.php',
         'Composer\\Installers\\MicroweberInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/MicroweberInstaller.php',
+        'Composer\\Installers\\ModxInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/ModxInstaller.php',
         'Composer\\Installers\\MoodleInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/MoodleInstaller.php',
         'Composer\\Installers\\OctoberInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/OctoberInstaller.php',
         'Composer\\Installers\\OntoWikiInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/OntoWikiInstaller.php',
@@ -216,6 +213,7 @@ class ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd
         'Composer\\Installers\\PortoInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/PortoInstaller.php',
         'Composer\\Installers\\PrestashopInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/PrestashopInstaller.php',
         'Composer\\Installers\\PuppetInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/PuppetInstaller.php',
+        'Composer\\Installers\\PxcmsInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/PxcmsInstaller.php',
         'Composer\\Installers\\RadPHPInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/RadPHPInstaller.php',
         'Composer\\Installers\\ReIndexInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/ReIndexInstaller.php',
         'Composer\\Installers\\RedaxoInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/RedaxoInstaller.php',
@@ -223,6 +221,7 @@ class ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd
         'Composer\\Installers\\SMFInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/SMFInstaller.php',
         'Composer\\Installers\\ShopwareInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/ShopwareInstaller.php',
         'Composer\\Installers\\SilverStripeInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/SilverStripeInstaller.php',
+        'Composer\\Installers\\SiteDirectInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/SiteDirectInstaller.php',
         'Composer\\Installers\\SyDESInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/SyDESInstaller.php',
         'Composer\\Installers\\Symfony1Installer' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/Symfony1Installer.php',
         'Composer\\Installers\\TYPO3CmsInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/TYPO3CmsInstaller.php',
@@ -239,11 +238,6 @@ class ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd
         'Composer\\Installers\\ZendInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/ZendInstaller.php',
         'Composer\\Installers\\ZikulaInstaller' => __DIR__ . '/..' . '/composer/installers/src/Composer/Installers/ZikulaInstaller.php',
         'Doctrine\\Common\\Inflector\\Inflector' => __DIR__ . '/..' . '/doctrine/inflector/lib/Doctrine/Common/Inflector/Inflector.php',
-        'Doctrine\\Instantiator\\Exception\\ExceptionInterface' => __DIR__ . '/..' . '/doctrine/instantiator/src/Doctrine/Instantiator/Exception/ExceptionInterface.php',
-        'Doctrine\\Instantiator\\Exception\\InvalidArgumentException' => __DIR__ . '/..' . '/doctrine/instantiator/src/Doctrine/Instantiator/Exception/InvalidArgumentException.php',
-        'Doctrine\\Instantiator\\Exception\\UnexpectedValueException' => __DIR__ . '/..' . '/doctrine/instantiator/src/Doctrine/Instantiator/Exception/UnexpectedValueException.php',
-        'Doctrine\\Instantiator\\Instantiator' => __DIR__ . '/..' . '/doctrine/instantiator/src/Doctrine/Instantiator/Instantiator.php',
-        'Doctrine\\Instantiator\\InstantiatorInterface' => __DIR__ . '/..' . '/doctrine/instantiator/src/Doctrine/Instantiator/InstantiatorInterface.php',
         'Htmlawed' => __DIR__ . '/..' . '/vanilla/htmlawed/src/Htmlawed.php',
         'HumanNameParser\\Exception\\FirstNameNotFoundException' => __DIR__ . '/..' . '/davidgorges/human-name-parser/src/HumanNameParser/Exception/FirstNameNotFoundException.php',
         'HumanNameParser\\Exception\\LastNameNotFoundException' => __DIR__ . '/..' . '/davidgorges/human-name-parser/src/HumanNameParser/Exception/LastNameNotFoundException.php',
@@ -459,7 +453,8 @@ class ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd
         'Leafo\\ScssPhp\\Node' => __DIR__ . '/..' . '/leafo/scssphp/src/Node.php',
         'Leafo\\ScssPhp\\Node\\Number' => __DIR__ . '/..' . '/leafo/scssphp/src/Node/Number.php',
         'Leafo\\ScssPhp\\Parser' => __DIR__ . '/..' . '/leafo/scssphp/src/Parser.php',
-        'Leafo\\ScssPhp\\Server' => __DIR__ . '/..' . '/leafo/scssphp/src/Server.php',
+        'Leafo\\ScssPhp\\SourceMap\\Base64VLQEncoder' => __DIR__ . '/..' . '/leafo/scssphp/src/SourceMap/Base64VLQEncoder.php',
+        'Leafo\\ScssPhp\\SourceMap\\SourceMapGenerator' => __DIR__ . '/..' . '/leafo/scssphp/src/SourceMap/SourceMapGenerator.php',
         'Leafo\\ScssPhp\\Type' => __DIR__ . '/..' . '/leafo/scssphp/src/Type.php',
         'Leafo\\ScssPhp\\Util' => __DIR__ . '/..' . '/leafo/scssphp/src/Util.php',
         'Leafo\\ScssPhp\\Version' => __DIR__ . '/..' . '/leafo/scssphp/src/Version.php',
@@ -551,10 +546,10 @@ class ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInit151f49c5b82015d7a6e6bfd892cddefd::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit8fb71e5b9c7e13a36e68db0c5eedbffe::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit8fb71e5b9c7e13a36e68db0c5eedbffe::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInit8fb71e5b9c7e13a36e68db0c5eedbffe::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInit8fb71e5b9c7e13a36e68db0c5eedbffe::$classMap;
 
         }, null, ClassLoader::class);
     }

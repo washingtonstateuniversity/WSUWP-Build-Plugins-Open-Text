@@ -1,7 +1,7 @@
 <?php
 /**
  * @author  Book Oven Inc. <code@pressbooks.com>
- * @license GPLv2+
+ * @license GPLv3+
  */
 
 namespace Pressbooks\Modules\SearchAndReplace\Types;
@@ -20,7 +20,7 @@ class Content extends \Pressbooks\Modules\SearchAndReplace\Search {
 		global $wpdb;
 		$results = [];
 
-		$sql = "SELECT ID, post_content, post_title FROM {$wpdb->posts}				
+		$sql = "SELECT ID, post_content, post_title FROM {$wpdb->posts}
 				WHERE post_type IN ('part','chapter','front-matter','back-matter')
 				AND post_status NOT IN ('trash','inherit')
 				ORDER BY ID ";
@@ -33,7 +33,8 @@ class Content extends \Pressbooks\Modules\SearchAndReplace\Search {
 
 		if ( count( $posts ) > 0 ) {
 			foreach ( $posts as $key => $post ) {
-				if ( ( $matches = $this->matches( $pattern, $post->post_content, $post->ID ) ) ) {
+				$matches = $this->matches( $pattern, $post->post_content, $post->ID );
+				if ( $matches ) {
 					foreach ( $matches as $match ) {
 						$match->title = $post->post_title;
 					}

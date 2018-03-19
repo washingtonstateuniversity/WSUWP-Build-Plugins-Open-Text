@@ -1,7 +1,7 @@
 <?php
 /**
  * @author  Pressbooks <code@pressbooks.com>
- * @license GPLv2 (or any later version)
+ * @license GPLv3 (or any later version)
  */
 
 namespace Pressbooks\Modules\Export\InDesign;
@@ -47,7 +47,7 @@ class Icml extends Export {
 		// Save ICML as file in exports folder
 
 		$filename = $this->timestampedFileName( '.icml' );
-		file_put_contents( $filename, $content );
+		\Pressbooks\Utility\put_contents( $filename, $content );
 		$this->outputPath = $filename;
 
 		if ( ! filesize( $this->outputPath ) ) {
@@ -110,7 +110,7 @@ class Icml extends Export {
 		$message .= 'Analysis of $book_html follows: ' . "\n\n";
 
 		$book_html_path = $this->createTmpFile();
-		file_put_contents( $book_html_path, $book_html );
+		\Pressbooks\Utility\put_contents( $book_html_path, $book_html );
 
 		// Xmllint params
 		$command = PB_XMLLINT_COMMAND . ' --html --valid --noout ' . escapeshellcmd( $book_html_path ) . ' 2>&1';
@@ -209,6 +209,8 @@ class Icml extends Export {
 	protected function tidy( $html ) {
 
 		// Make XHTML 1.1 strict using htmlLawed
+
+		$html = \Pressbooks\Interactive\Content::init()->replaceInteractiveTags( $html );
 
 		$config = [
 			'valid_xhtml' => 1,

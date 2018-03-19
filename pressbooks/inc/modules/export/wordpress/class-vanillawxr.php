@@ -1,7 +1,7 @@
 <?php
 /**
  * @author  Pressbooks <code@pressbooks.com>
- * @license GPLv2 (or any later version)
+ * @license GPLv3 (or any later version)
  */
 
 namespace Pressbooks\Modules\Export\WordPress;
@@ -34,7 +34,7 @@ class VanillaWxr extends Wxr {
 
 		// check for errors
 		if ( ! $success ) {
-			throw new \Exception( print_r( libxml_get_errors(), true ) );
+			throw new \Exception( print_r( libxml_get_errors(), true ) ); // @codingStandardsIgnoreLine
 		}
 
 		for ( $i = 0; $i < $post_type->length; $i++ ) {
@@ -78,7 +78,7 @@ class VanillaWxr extends Wxr {
 
 		// sanity
 		if ( ! $xml ) {
-			throw new \Exception( print_r( libxml_get_errors(), true ) );
+			throw new \Exception( print_r( libxml_get_errors(), true ) ); // @codingStandardsIgnoreLine
 		}
 
 		$category = $xml->xpath( '/rss/channel/item/category' );
@@ -109,7 +109,7 @@ class VanillaWxr extends Wxr {
 
 		// save wxr as file in exports folder
 		$filename = $this->timestampedFileName( '._vanilla.xml' );
-		file_put_contents( $filename, $output );
+		\Pressbooks\Utility\put_contents( $filename, $output );
 		$this->outputPath = $filename;
 
 		return true;

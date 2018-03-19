@@ -1,7 +1,7 @@
 <?php
 /**
  * @author  Pressbooks <code@pressbooks.com>
- * @license GPLv2 (or any later version)
+ * @license GPLv3 (or any later version)
  */
 
 namespace Pressbooks\Admin\Delete;
@@ -60,7 +60,8 @@ class Book {
 	public function deleteBookEmailContent( $content ) {
 
 		/* translators: Do not translate USERNAME, URL_DELETE, SITE_NAME: those are placeholders. */
-		$content = __( "Howdy ###USERNAME###,
+		$content = __(
+			"Howdy ###USERNAME###,
 
 You recently clicked the 'Delete Book' link on your book and filled in a
 form on that page.
@@ -74,7 +75,8 @@ some time in the future! (But remember your current book
 is gone forever.)
 
 Thanks for using Pressbooks,
-###SITE_NAME###", 'pressbooks' );
+###SITE_NAME###", 'pressbooks'
+		);
 
 		return $content;
 	}

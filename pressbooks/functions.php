@@ -3,7 +3,7 @@
  * Shortcuts for template designers who don't use real namespaces, and other helper functions.
  *
  * @author  Pressbooks <code@pressbooks.com>
- * @license GPLv2 (or any later version)
+ * @license GPLv3 (or any later version)
  */
 
 if ( ! function_exists( 'app' ) ) {
@@ -176,69 +176,104 @@ function pb_get_custom_stylesheet_url() {
 }
 
 /**
- * Get "real" chapter number
+ * Get "real" chapter number for Web + REST API
  *
- * @param $post_name
+ * @param string $post_name
  *
  * @return int
  */
 function pb_get_chapter_number( $post_name ) {
-
 	$options = get_option( 'pressbooks_theme_options_global' );
 	if ( ! @$options['chapter_numbers'] ) {
 		return 0;
 	}
 
-	$lookup = \Pressbooks\Book::getBookStructure();
-	$lookup = $lookup['__export_lookup'];
-
-	if ( 'chapter' != @$lookup[ $post_name ] ) {
-		return 0;
+	static $book_structure = null; // Cheap cache
+	if ( $book_structure === null ) {
+		$book_structure = \Pressbooks\Book::getBookStructure();
 	}
 
-	$i = 0;
-	foreach ( $lookup as $key => $val ) {
-		if ( 'chapter' == $val ) {
-			$chapter = get_posts( array( 'name' => $key, 'post_type' => 'chapter', 'post_status' => 'publish', 'numberposts' => 1 ) );
-			if ( isset( $chapter[0] ) ) {
-				$type = pb_get_section_type( $chapter[0] );
-				if ( 'numberless' !== $type ) {
-					++$i;
-				}
-			} else {
-				return 0;
-			}
-			if ( $key == $post_name ) {
+	$lookup = $book_structure['__web_lookup'];
+	if ( ! isset( $lookup[ $post_name ] ) ) {
+		return 0;
+	}
+	if ( 'chapter' !== $lookup[ $post_name ] ) {
+		// Compensate for Book::fixSlug()
+		$found_it = false;
+		for ( $i = 0; $i++, $i <= 999; ) {
+			$fixed_post_name = "{$post_name}-{$i}";
+			if ( isset( $lookup[ $fixed_post_name ] ) && 'chapter' === $lookup[ $fixed_post_name ] ) {
+				$found_it = true;
+				$post_name = $fixed_post_name;
 				break;
 			}
 		}
+		if ( ! $found_it ) {
+			return 0;
+		}
 	}
 
-	if ( 'numberless' == $type ) {
+	$chapter_keys = [];
+	foreach ( $lookup as $key => $val ) {
+		if ( 'chapter' === $val ) {
+			$chapter_keys[] = $key;
+		}
+	}
+
+	$i = 0;
+	$type = '';
+	foreach ( $chapter_keys as $val ) {
+		$item = null;
+		foreach ( $book_structure['part'] as $part ) {
+			foreach ( $part['chapters'] as $chapter ) {
+				if ( $val === $chapter['post_name'] ) {
+					$item = new \stdClass();
+					$item->ID = $chapter['ID'];
+					$item->post_name = $chapter['post_name'];
+					$item->post_type = 'chapter';
+					break 2;
+				}
+			}
+		}
+		if ( $item === null ) {
+			return 0;
+		}
+		$type = pb_get_section_type( $item );
+		if ( 'numberless' !== $type ) {
+			++$i;
+		}
+		if ( $item->post_name === $post_name ) {
+			break;
+		}
+	}
+
+	if ( 'numberless' === $type ) {
 		$i = 0;
 	}
+
 	return $i;
 }
 
 /**
  * Get chapter, front or back matter type
  *
- * @param $post
+ * @param WP_Post $post
  *
  * @return string
  */
 function pb_get_section_type( $post ) {
 	$type = $post->post_type;
+	$taxonomy = \Pressbooks\Taxonomy::init();
 	switch ( $type ) {
 		case 'chapter':
-			$type = \Pressbooks\Taxonomy::getChapterType( $post->ID );
-		break;
+			$type = $taxonomy->getChapterType( $post->ID );
+			break;
 		case 'front-matter':
-			$type = \Pressbooks\Taxonomy::getFrontMatterType( $post->ID );
-		break;
+			$type = $taxonomy->getFrontMatterType( $post->ID );
+			break;
 		case 'back-matter':
-			$type = \Pressbooks\Taxonomy::getBackMatterType( $post->ID );
-		break;
+			$type = $taxonomy->getBackMatterType( $post->ID );
+			break;
 	}
 
 	return $type;
