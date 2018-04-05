@@ -995,17 +995,17 @@
     },
     {
         "name": "pressbooks/pb-cli",
-        "version": "1.7.0",
-        "version_normalized": "1.7.0.0",
+        "version": "1.8.0",
+        "version_normalized": "1.8.0.0",
         "source": {
             "type": "git",
             "url": "https://github.com/pressbooks/pb-cli.git",
-            "reference": "d9ebeff0fb2e91eedcc9a043735cdef10afd230d"
+            "reference": "f606bd405138b79a7ea7f07dff5bec54919d0b7e"
         },
         "dist": {
             "type": "zip",
-            "url": "https://api.github.com/repos/pressbooks/pb-cli/zipball/d9ebeff0fb2e91eedcc9a043735cdef10afd230d",
-            "reference": "d9ebeff0fb2e91eedcc9a043735cdef10afd230d",
+            "url": "https://api.github.com/repos/pressbooks/pb-cli/zipball/f606bd405138b79a7ea7f07dff5bec54919d0b7e",
+            "reference": "f606bd405138b79a7ea7f07dff5bec54919d0b7e",
             "shasum": ""
         },
         "require": {
@@ -1015,14 +1015,15 @@
             "behat/behat": "~2.5",
             "wp-cli/wp-cli": "^1.5"
         },
-        "time": "2018-03-07T14:48:30+00:00",
+        "time": "2018-03-15T18:07:46+00:00",
         "type": "wp-cli-package",
         "extra": {
             "commands": [
                 "scaffold book-theme",
                 "pb issue-template",
                 "pb theme lock",
-                "pb theme unlock"
+                "pb theme unlock",
+                "pb clone"
             ]
         },
         "installation-source": "dist",

@@ -71,7 +71,7 @@ function register_post_types() {
 			'capability_type' => 'page',
 			'has_archive' => true,
 			'hierarchical' => true,
-			'supports' => [ 'title', 'editor', 'page-attributes' ],
+			'supports' => [ 'title', 'editor', 'page-attributes', 'revisions' ],
 			'show_in_menu' => false,
 			'show_in_admin_bar' => true,
 			'show_in_rest' => true,
@@ -337,4 +337,34 @@ function can_export( $post_id = 0 ) {
 		// Look if info exist in post meta (old data model)
 		return ( get_post_meta( $post_id, 'pb_export', true ) === 'on' );
 	}
+}
+
+/**
+ * @since 5.2.0
+ *
+ * @param string $posttype The slug of a post type
+ *
+ * @return string The localized label for the post type, or false if an invalid post type was supplied.
+ */
+function get_post_type_label( $posttype ) {
+	switch ( $posttype ) :
+		case 'metadata':
+			$label = __( 'Book Information', 'pressbooks' );
+			break;
+		case 'part':
+			$label = __( 'Part', 'pressbooks' );
+			break;
+		case 'chapter':
+			$label = __( 'Chapter', 'pressbooks' );
+			break;
+		case 'front-matter':
+			$label = __( 'Front Matter', 'pressbooks' );
+			break;
+		case 'back-matter':
+			$label = __( 'Back Matter', 'pressbooks' );
+			break;
+		default:
+			$label = false;
+	endswitch;
+	return $label;
 }

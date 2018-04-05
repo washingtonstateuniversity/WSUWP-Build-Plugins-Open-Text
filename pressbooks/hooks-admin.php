@@ -93,7 +93,7 @@ add_action( 'gettext', '\Pressbooks\Admin\Laf\sites_to_books', 3, 20 );
 add_action( 'admin_init', '\Pressbooks\Admin\Laf\init_css_js' );
 
 // Hacks
-add_action( 'edit_form_advanced', '\Pressbooks\Admin\Laf\edit_form_hacks' );
+add_action( 'edit_form_top', '\Pressbooks\Admin\Laf\edit_screen_navigation' );
 
 // Google Analytics
 add_action( 'network_admin_menu', '\Pressbooks\Admin\Analytics\add_network_menu' );
@@ -157,7 +157,7 @@ if ( $is_book ) {
 	add_action( 'admin_enqueue_scripts', '\Pressbooks\Admin\Metaboxes\add_metadata_styles' );
 	add_action( 'save_post', '\Pressbooks\Book::consolidatePost', 10, 2 );
 	add_action( 'save_post_metadata', '\Pressbooks\Admin\Metaboxes\upload_cover_image', 10, 2 );
-	add_action( 'save_post_metadata', '\Pressbooks\Admin\Metaboxes\add_required_data', 20, 2 );
+	add_action( 'wp_insert_post', '\Pressbooks\Admin\Metaboxes\add_required_data', 10, 2 );
 	add_action( 'save_post_metadata', '\Pressbooks\Admin\Metaboxes\save_subject_metadata', 10, 2 );
 	add_action( 'contributor_add_form_fields', '\Pressbooks\Admin\Metaboxes\contributor_add_form' );
 	add_action( 'contributor_edit_form_fields', '\Pressbooks\Admin\Metaboxes\contributor_edit_form' );
@@ -207,6 +207,7 @@ add_action( 'wp_ajax_pb_delete_catalog_logo', '\Pressbooks\Catalog::deleteLogo' 
 
 add_action( 'update_option_pressbooks_global_typography', '\Pressbooks\Admin\Fonts\update_font_stacks' );
 add_action( 'update_option_pressbooks_theme_options_web', '\Pressbooks\Admin\Fonts\update_font_stacks' );
+add_action( 'updated_option', [ '\Pressbooks\Options', 'deleteCacheAfterUpdate' ] );
 
 if ( $is_book ) {
 

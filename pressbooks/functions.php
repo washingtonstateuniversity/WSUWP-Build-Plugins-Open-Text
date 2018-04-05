@@ -37,6 +37,15 @@ function pb_get_prev() {
 	return \Pressbooks\Book::get( 'prev' );
 }
 
+/**
+ * Shortcut to \Pressbooks\Book::get( 'prev', true );
+ *
+ * @return int|false
+ */
+function pb_get_prev_post_id() {
+
+	return \Pressbooks\Book::get( 'prev', true );
+}
 
 /**
  * Shortcut to \Pressbooks\Book::get( 'next' );
@@ -48,6 +57,15 @@ function pb_get_next() {
 	return \Pressbooks\Book::get( 'next' );
 }
 
+/**
+ * Shortcut to \Pressbooks\Book::get( 'next', true );
+ *
+ * @return int|false
+ */
+function pb_get_next_post_id() {
+
+	return \Pressbooks\Book::get( 'next', true );
+}
 
 /**
  * Shortcut to \Pressbooks\Book::get( 'first' );
@@ -59,6 +77,15 @@ function pb_get_first() {
 	return \Pressbooks\Book::get( 'first' );
 }
 
+/**
+ * Shortcut to \Pressbooks\Book::get( 'first', true );
+ *
+ * @return int|false
+ */
+function pb_get_first_post_id() {
+
+	return \Pressbooks\Book::get( 'first', true );
+}
 
 /**
  * Shortcut to \Pressbooks\Book::getBookInformation();
@@ -178,80 +205,13 @@ function pb_get_custom_stylesheet_url() {
 /**
  * Get "real" chapter number for Web + REST API
  *
- * @param string $post_name
+ * @param int $post_id
  *
  * @return int
  */
-function pb_get_chapter_number( $post_name ) {
-	$options = get_option( 'pressbooks_theme_options_global' );
-	if ( ! @$options['chapter_numbers'] ) {
-		return 0;
-	}
+function pb_get_chapter_number( $post_id ) {
 
-	static $book_structure = null; // Cheap cache
-	if ( $book_structure === null ) {
-		$book_structure = \Pressbooks\Book::getBookStructure();
-	}
-
-	$lookup = $book_structure['__web_lookup'];
-	if ( ! isset( $lookup[ $post_name ] ) ) {
-		return 0;
-	}
-	if ( 'chapter' !== $lookup[ $post_name ] ) {
-		// Compensate for Book::fixSlug()
-		$found_it = false;
-		for ( $i = 0; $i++, $i <= 999; ) {
-			$fixed_post_name = "{$post_name}-{$i}";
-			if ( isset( $lookup[ $fixed_post_name ] ) && 'chapter' === $lookup[ $fixed_post_name ] ) {
-				$found_it = true;
-				$post_name = $fixed_post_name;
-				break;
-			}
-		}
-		if ( ! $found_it ) {
-			return 0;
-		}
-	}
-
-	$chapter_keys = [];
-	foreach ( $lookup as $key => $val ) {
-		if ( 'chapter' === $val ) {
-			$chapter_keys[] = $key;
-		}
-	}
-
-	$i = 0;
-	$type = '';
-	foreach ( $chapter_keys as $val ) {
-		$item = null;
-		foreach ( $book_structure['part'] as $part ) {
-			foreach ( $part['chapters'] as $chapter ) {
-				if ( $val === $chapter['post_name'] ) {
-					$item = new \stdClass();
-					$item->ID = $chapter['ID'];
-					$item->post_name = $chapter['post_name'];
-					$item->post_type = 'chapter';
-					break 2;
-				}
-			}
-		}
-		if ( $item === null ) {
-			return 0;
-		}
-		$type = pb_get_section_type( $item );
-		if ( 'numberless' !== $type ) {
-			++$i;
-		}
-		if ( $item->post_name === $post_name ) {
-			break;
-		}
-	}
-
-	if ( 'numberless' === $type ) {
-		$i = 0;
-	}
-
-	return $i;
+	return \Pressbooks\Book::getChapterNumber( $post_id );
 }
 
 /**
